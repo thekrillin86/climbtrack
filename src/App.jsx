@@ -87,7 +87,7 @@ export default function App(){
     <main className="content">
       {page==='dash'&&<Dash cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg} tp={tp} susp={susp}/>}
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}
-      {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises}/>}
+      {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises} t25={t25} st25={d=>s('ct5_t25',d,setT25)} treg={treg} streg={d=>s('ct5_treg',d,setTreg)}/>}
       {page==='roca'&&<RocP data={roca} save={d=>s('ct5_roca',d,setRoca)} sects={sects} vias={vias} lib={lib} saveLib={d=>s('ct5_lib',d,setLib)}/>}
       {page==='susp'&&<SuspP data={susp} save={d=>s('ct5_susp',d,setSusp)} t25={t25} st25={d=>s('ct5_t25',d,setT25)} cal={cal} ent={ent} allEx={allExercises}/>}
       {page==='cfw'&&<CFWP data={cfw} save={d=>s('ct5_cfw',d,setCfw)} tp={tp}/>}
@@ -335,10 +335,10 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
 }
 
 /* ───────── ENTRENAMIENTOS ───────── */
-function EntP({data,save,allEx}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
   const TIPOS=['Rocòdrom','Suspensions/Dominades','Gimnàs'];
   const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:''});
-  const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:''};
+  const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const sB=(i,f,v)=>{const b=[...form.bloques];b[i]={...b[i],[f]:v};setForm({...form,bloques:b})};
@@ -347,7 +347,15 @@ function EntP({data,save,allEx}){const[show,setShow]=useState(false);const[eid,s
   const rE=(bi,ei)=>{const b=[...form.bloques];const e=b[bi].ejercicios.filter((_,i)=>i!==ei);b[bi]={...b[bi],ejercicios:e.length?e:['']};setForm({...form,bloques:b})};
   const aB=t=>setForm({...form,bloques:[...form.bloques,eb(t)]});
   const rB=i=>{if(form.bloques.length<=1)return;setForm({...form,bloques:form.bloques.filter((_,j)=>j!==i)})};
-  const sub=()=>{let ct=0,mt=0;const bl=form.bloques.map(b=>{const m=Number(b.minutos)||0,r=Number(b.rpe)||0,c=m*r;ct+=c;mt+=m;return{...b,carga:c,ejercicios:b.ejercicios.filter(e=>e.trim())}});const e={...form,bloques:bl,min_total:mt,carga_total:ct};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else save([...data,{...e,id:xi()}]);setShow(false);setEid(null);setForm(blank)};
+  const fl=calcFL(form.tri,form.trd,form.tri_post,form.trd_post);
+  const sub=()=>{let ct=0,mt=0;const bl=form.bloques.map(b=>{const m=Number(b.minutos)||0,r=Number(b.rpe)||0,c=m*r;ct+=c;mt+=m;return{...b,carga:c,ejercicios:b.ejercicios.filter(e=>e.trim())}});const e={...form,bloques:bl,min_total:mt,carga_total:ct,force_loss:fl};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else save([...data,{...e,id:xi()}]);
+    if(form.syncTindeq){
+      // 25mm pre-session → Tindeq 25mm tab
+      if(form.t25i&&form.t25d&&st25&&!t25.some(r=>r.fecha===form.fecha)){st25([...t25,{fecha:form.fecha,mm:25,esq:Number(form.t25i),dre:Number(form.t25d),id:xi(),src:'ent'}])}
+      // Regleta pre-session → Tindeq Regleta tab
+      if(form.tri&&form.trd&&streg&&!treg.some(r=>r.fecha===form.fecha&&r.momento!=='post')){streg([...treg,{fecha:form.fecha,mm:16,esq:Number(form.tri),dre:Number(form.trd),id:xi(),momento:'pre',src:'ent'}])}
+    }
+    setShow(false);setEid(null);setForm(blank)};
   const gB=r=>{if(r.bloques&&Array.isArray(r.bloques)&&r.bloques.length)return r.bloques;const b=[];if(r.parte_gen)b.push({tipo:'General',ejercicios:(r.parte_gen||'').split(' , '),minutos:r.min_gen,rpe:r.rpe_gen,carga:r.carga_gen});if(r.ej_esp)b.push({tipo:'Específica',ejercicios:(r.ej_esp||'').split(' , '),minutos:r.min_esp,rpe:r.rpe_esp,carga:r.carga_esp});return b};
   const ed=r=>{const bl=gB(r);setForm({...r,bloques:bl.length?bl:[eb('General'),eb('Específica')]});setEid(r.id);setShow(true)};
   return(<div className="page"><h2 className="p-title">Entrenamientos</h2>
@@ -356,6 +364,12 @@ function EntP({data,save,allEx}){const[show,setShow]=useState(false);const[eid,s
       <div className="row-2"><F label="Macro" value={form.macro} onChange={v=>setForm({...form,macro:v})} type="number"/><F label="Meso" value={form.meso} onChange={v=>setForm({...form,meso:v})} type="number"/></div>
       <div className="sh a">⌚ Suunto</div>
       <div className="row-3"><F label="FC media" value={form.hr_avg} onChange={v=>setForm({...form,hr_avg:v})} type="number"/><F label="FC máx" value={form.hr_max} onChange={v=>setForm({...form,hr_max:v})} type="number"/><F label="Calorías" value={form.calorias} onChange={v=>setForm({...form,calorias:v})} type="number"/></div>
+      <div className="sh a">📏 Tindeq</div>
+      <div className="row-2"><F label="25mm Izq" value={form.t25i} onChange={v=>setForm({...form,t25i:v})} type="number"/><F label="25mm Dch" value={form.t25d} onChange={v=>setForm({...form,t25d:v})} type="number"/></div>
+      <div className="row-2"><F label="Regleta Izq PRE" value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label="Regleta Dch PRE" value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
+      <div className="row-2"><F label="Regleta Izq POST" value={form.tri_post} onChange={v=>setForm({...form,tri_post:v})} type="number"/><F label="Regleta Dch POST" value={form.trd_post} onChange={v=>setForm({...form,trd_post:v})} type="number"/></div>
+      {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'#9B3A3A':fl>25?'#D4563A':fl>15?'#E8A838':'#6B9F4A'}}>Pérdida de fuerza: {fl}%</div>}
+      <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar estos valores también en la pestaña Tindeq</label>
       {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div>
         {b.ejercicios.map((ej,ei)=><div key={ei} className="ej-row"><Combo label="" value={ej} onChange={v=>sE(bi,ei,v)} options={allEx}/>{b.ejercicios.length>1&&<button className="ej-rm" onClick={()=>rE(bi,ei)}>✕</button>}</div>)}
         <button className="ej-add" onClick={()=>aE(bi)}>+ Ejercicio</button>
