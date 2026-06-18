@@ -89,5 +89,6 @@ export const CSS=`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:
 .cfw-n{font-size:10px;color:#6B5F52;min-width:18px;text-align:center}
 .cfw-result{display:flex;gap:10px;margin:12px 0;background:#E8A83812;border:1px solid #E8A83844;border-radius:10px;padding:12px}
 .cfw-result>div{flex:1;text-align:center}.cfw-rl{display:block;font-size:10px;color:#8B7D6B;text-transform:uppercase}.cfw-rv{font-size:16px;font-weight:700;color:#E8A838}
+.sync-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#8B7D6B;margin-top:10px;cursor:pointer}.sync-toggle input{width:18px;height:18px;accent-color:#E8A838}
 @media(min-width:600px){.stat-grid{grid-template-columns:repeat(4,1fr)}.content{padding:20px 24px 80px}.m-overlay{align-items:center}.m-box{border-radius:20px;max-height:85vh}.more-menu{border-radius:20px;max-width:400px;margin-bottom:100px}.info-modal{margin:auto}}
 `;

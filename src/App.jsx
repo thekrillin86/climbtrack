@@ -89,7 +89,7 @@ export default function App(){
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}
       {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises}/>}
       {page==='roca'&&<RocP data={roca} save={d=>s('ct5_roca',d,setRoca)} sects={sects} vias={vias} lib={lib} saveLib={d=>s('ct5_lib',d,setLib)}/>}
-      {page==='susp'&&<SuspP data={susp} save={d=>s('ct5_susp',d,setSusp)} t25={t25} cal={cal} ent={ent} allEx={allExercises}/>}
+      {page==='susp'&&<SuspP data={susp} save={d=>s('ct5_susp',d,setSusp)} t25={t25} st25={d=>s('ct5_t25',d,setT25)} cal={cal} ent={ent} allEx={allExercises}/>}
       {page==='cfw'&&<CFWP data={cfw} save={d=>s('ct5_cfw',d,setCfw)} tp={tp}/>}
       {page==='lib'&&<LibP data={lib} save={d=>s('ct5_lib',d,setLib)} sects={sects}/>}
       {page==='tindeq'&&<TqP t25={t25} treg={treg} st25={d=>s('ct5_t25',d,setT25)} streg={d=>s('ct5_treg',d,setTreg)}/>}
@@ -183,13 +183,13 @@ function Dash({cal,ent,roca,lib,dp,t25,treg,tp,susp}){
 }
 
 /* ───────── SUSPENSIONES BERGUA ───────── */
-function SuspP({data,save,t25,cal,ent,allEx}){
+function SuspP({data,save,t25,st25,cal,ent,allEx}){
   const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
   const mvcL=useMemo(()=>lastMVC(t25,'esq'),[t25]);
   const mvcR=useMemo(()=>lastMVC(t25,'dre'),[t25]);
   const blank=()=>({fecha:td(),edge:25,intensidad:75,series_prog:8,reps:4,work:8,pause:2,
     mvc_l:mvcL?mvcL.value:'',mvc_r:mvcR?mvcR.value:'',
-    series_data:[],hr_avg:'',calorias:'',fatiga_ini:1,fatiga_fin:3,obs:''});
+    series_data:[],hr_avg:'',calorias:'',fatiga_ini:1,fatiga_fin:3,obs:'',syncTindeq:true});
   const[form,setForm]=useState(blank());
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const tgtL=targetLoad(Number(form.mvc_l),Number(form.intensidad));
@@ -204,7 +204,9 @@ function SuspP({data,save,t25,cal,ent,allEx}){
   useEffect(()=>{ensureSeries()},[form.series_prog]);
   const toggleSet=i=>{const sd=[...form.series_data];sd[i]={...sd[i],done:!sd[i].done};setForm({...form,series_data:sd})};
   const setPeak=(i,v)=>{const sd=[...form.series_data];sd[i]={...sd[i],peak:v};setForm({...form,series_data:sd})};
-  const sub=()=>{const e={...form,completed,loss};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else save([...data,{...e,id:xi()}]);setShow(false);setEid(null);setForm(blank())};
+  const sub=()=>{const e={...form,completed,loss};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else save([...data,{...e,id:xi()}]);
+    if(form.syncTindeq&&form.mvc_l&&form.mvc_r&&st25){const exists=t25.some(r=>r.fecha===form.fecha);if(!exists){st25([...t25,{fecha:form.fecha,mm:25,esq:Number(form.mvc_l),dre:Number(form.mvc_r),id:xi(),src:'susp'}])}}
+    setShow(false);setEid(null);setForm(blank())};
   const open=()=>{setEid(null);setForm(blank());setShow(true)};
   const edit=r=>{setForm({...blank(),...r,series_data:r.series_data||[]});setEid(r.id);setShow(true)};
 
@@ -226,6 +228,7 @@ function SuspP({data,save,t25,cal,ent,allEx}){
           {mvcR&&<span className={`mvc-age ${mvcR.daysOld>7?'stale':''}`}>{mvcR.daysOld}d</span>}
         </div>
         {((mvcL&&mvcL.daysOld>7)||(mvcR&&mvcR.daysOld>7))&&<div className="mvc-warn">⚠ MVC con más de 7 días. Mide en el Tindeq antes de empezar.</div>}
+        <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar este MVC también como test 25mm en Tindeq</label>
       </div>
 
       <div className="row-2"><F label="Edge (mm)" value={form.edge} onChange={v=>setForm({...form,edge:v})} type="number"/><F label="Intensidad %" value={form.intensidad} onChange={v=>setForm({...form,intensidad:v})} type="number"/></div>
