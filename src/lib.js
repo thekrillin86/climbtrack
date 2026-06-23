@@ -61,21 +61,40 @@ export function calcBanister(cal,ent){
 }
 
 // ───────────────────────── TENDON RECOVERY WINDOW (72-96h)
-// Per Breda 2024 (collagen synthesis), PhysiVantage, Docking&Cook.
-// Returns warning if a Roca/project session is too close to a suspension session.
+// Per Breda 2024 (collagen synthesis), Docking&Cook, Baar.
+// All finger-loading activities stress the FDP/FDS tendons & pulleys:
+// suspensions, bouldering (rocòdrom) and rock. Intensity scales the window.
+// fingerLoad: relative tendon stress per activity (suspensions highest per minute,
+// but hard bouldering/rock with repeated crimping is comparable).
+export function fingerLoad(act,ff){
+  if(!act)return 0;const l=act.trim().toLowerCase();
+  const fat=Number(ff)||1; // fatiga_fin as intensity proxy (1-10)
+  if(l.includes('susp'))return 1.0*fat;      // suspensions: max tendon-specific load
+  if(l.includes('rocò')||l.includes('rocod'))return 0.85*fat; // bouldering: high crimp load
+  if(l.includes('roca'))return 0.80*fat;     // rock: sustained + crux crimps
+  return 0; // gym/cardio/yoga don't load fingers
+}
 export function tendonAlert(cal,ent){
   const today=new Date(td());
-  // Find last suspension session
-  const allSusp=[...cal.filter(r=>(r.activitat||'').toLowerCase().includes('susp')),
-                 ...ent.filter(r=>(r.tipo||'').toLowerCase().includes('susp'))]
-    .map(r=>r.fecha).filter(Boolean).sort();
-  const lastSusp=allSusp.length?new Date(allSusp[allSusp.length-1]):null;
-  if(!lastSusp)return null;
-  const hrs=(today-lastSusp)/36e5;
+  // Gather ALL finger-loading sessions (suspensions + rocòdrom + roca) with intensity
+  const ev=[];
+  cal.forEach(r=>{if(!r.fecha)return;const load=fingerLoad(r.activitat,r.fatiga_fin);if(load>0)ev.push({fecha:r.fecha,load,act:r.activitat})});
+  ent.forEach(r=>{if(!r.fecha)return;const load=fingerLoad(r.tipo,r.fatiga_fin);if(load>0)ev.push({fecha:r.fecha,load,act:r.tipo})});
+  if(!ev.length)return null;
+  // Most recent finger-loading session
+  ev.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const last=ev[ev.length-1];
+  const lastD=new Date(last.fecha);
+  const hrs=(today-lastD)/36e5;
   if(hrs<0)return null;
-  if(hrs<72)return{level:'red',hrs:Math.round(hrs),msg:`Solo ${Math.round(hrs)}h desde suspensiones. Tendón en fase de recuperación incompleta (<72h). Riesgo de bajo rendimiento y sobrecarga en proyecto.`};
-  if(hrs<96)return{level:'amber',hrs:Math.round(hrs),msg:`${Math.round(hrs)}h desde suspensiones. Recuperación tendinosa aceptable pero no óptima (72-96h). Para máximo rendimiento en roca, espera a 96h.`};
-  return{level:'green',hrs:Math.round(hrs),msg:`${Math.round(hrs)}h desde suspensiones. Tendón recuperado (>96h). Condiciones óptimas para proyecto.`};
+  // Window scales with intensity: hard session (load>=3.5 ≈ fatiga 4+ susp/boulder) needs 96h;
+  // moderate (>=2) needs 72h; light (<2) needs 48h.
+  const hardWin = last.load>=3.5?96:last.load>=2?72:48;
+  const midWin  = hardWin-24;
+  const label=last.act||'carga de dedos';
+  if(hrs<midWin)return{level:'red',hrs:Math.round(hrs),act:label,msg:`Solo ${Math.round(hrs)}h desde "${label}". Tendones de los dedos (FDP/FDS) en recuperación incompleta. Riesgo de sobrecarga si cargas dedos hoy.`};
+  if(hrs<hardWin)return{level:'amber',hrs:Math.round(hrs),act:label,msg:`${Math.round(hrs)}h desde "${label}". Recuperación tendinosa aceptable pero no óptima. Para máximo rendimiento espera a ${hardWin}h.`};
+  return{level:'green',hrs:Math.round(hrs),act:label,msg:`${Math.round(hrs)}h desde "${label}". Tendones recuperados. Condiciones óptimas para cargar dedos.`};
 }
 
 export function calcReadiness(ban,cal,t25){
