@@ -74,27 +74,54 @@ export function fingerLoad(act,ff){
   if(l.includes('roca'))return 0.80*fat;     // rock: sustained + crux crimps
   return 0; // gym/cardio/yoga don't load fingers
 }
+// Serie diaria de carga de dedos (calendario + entrenamientos)
+function fingerSeries(cal,ent){
+  const byDay={};
+  cal.forEach(r=>{if(!r.fecha)return;const l=fingerLoad(r.activitat,r.fatiga_fin);if(l>0)byDay[r.fecha]=Math.max(byDay[r.fecha]||0,l)});
+  ent.forEach(r=>{if(!r.fecha)return;const l=fingerLoad(r.tipo,r.fatiga_fin);if(l>0)byDay[r.fecha]=Math.max(byDay[r.fecha]||0,l)});
+  return byDay;
+}
+
+// VENTANA TENDINOSA v2 — ahora considera CARGA ACUMULADA, no solo la última sesión.
+// Base: J Exp Biol 2023 (carga cíclica alta consecutiva acumula microdaño más rápido
+// de lo que el tejido repara; el efecto persistía incluso tras 48h de descanso) +
+// Sports Medicine 2024 "From Tissue to System" (ventanas según tipo de estrés) +
+// revisiones de poleas 2025-26 (la gestión de carga acumulada es la prevención clave).
 export function tendonAlert(cal,ent){
   const today=new Date(td());
-  // Gather ALL finger-loading sessions (suspensions + rocòdrom + roca) with intensity
-  const ev=[];
-  cal.forEach(r=>{if(!r.fecha)return;const load=fingerLoad(r.activitat,r.fatiga_fin);if(load>0)ev.push({fecha:r.fecha,load,act:r.activitat})});
-  ent.forEach(r=>{if(!r.fecha)return;const load=fingerLoad(r.tipo,r.fatiga_fin);if(load>0)ev.push({fecha:r.fecha,load,act:r.tipo})});
-  if(!ev.length)return null;
-  // Most recent finger-loading session
-  ev.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const last=ev[ev.length-1];
-  const lastD=new Date(last.fecha);
-  const hrs=(today-lastD)/36e5;
+  const byDay=fingerSeries(cal,ent);
+  const days=Object.keys(byDay).sort();
+  if(!days.length)return null;
+
+  // 1. Tiempo desde la última carga de dedos
+  const lastDay=days[days.length-1];
+  const hrs=(today-new Date(lastDay))/36e5;
   if(hrs<0)return null;
-  // Window scales with intensity: hard session (load>=3.5 ≈ fatiga 4+ susp/boulder) needs 96h;
-  // moderate (>=2) needs 72h; light (<2) needs 48h.
-  const hardWin = last.load>=3.5?96:last.load>=2?72:48;
-  const midWin  = hardWin-24;
-  const label=last.act||'carga de dedos';
-  if(hrs<midWin)return{level:'red',hrs:Math.round(hrs),act:label,msg:`Solo ${Math.round(hrs)}h desde "${label}". Tendones de los dedos (FDP/FDS) en recuperación incompleta. Riesgo de sobrecarga si cargas dedos hoy.`};
-  if(hrs<hardWin)return{level:'amber',hrs:Math.round(hrs),act:label,msg:`${Math.round(hrs)}h desde "${label}". Recuperación tendinosa aceptable pero no óptima. Para máximo rendimiento espera a ${hardWin}h.`};
-  return{level:'green',hrs:Math.round(hrs),act:label,msg:`${Math.round(hrs)}h desde "${label}". Tendones recuperados. Condiciones óptimas para cargar dedos.`};
+  const lastLoad=byDay[lastDay];
+  const lastAct=[...cal,...ent].filter(r=>r.fecha===lastDay).map(r=>r.activitat||r.tipo).filter(Boolean)[0]||'carga de dedos';
+
+  // 2. Carga acumulada: aguda (7d) vs crónica (media semanal de 28d)
+  const dAgo=n=>new Date(today.getTime()-n*864e5).toISOString().split('T')[0];
+  const sumRange=n=>days.filter(d=>d>dAgo(n)).reduce((s,d)=>s+byDay[d],0);
+  const acute7=sumRange(7);
+  const chronic28=sumRange(28)/4;
+  const ratio=chronic28>0?Math.round(acute7/chronic28*100)/100:1;
+  const sesiones7=days.filter(d=>d>dAgo(7)).length;
+
+  // 3. Ventana base según intensidad de la última sesión
+  let win = lastLoad>=3.5?96 : lastLoad>=2?72 : 48;
+  let acum='';
+  if(ratio>1.5){win+=24;acum=` Carga de dedos 7d muy elevada (${ratio}× tu media): el tejido repara más lento tras picos.`}
+  else if(ratio>1.3){win+=12;acum=` Carga de dedos 7d algo elevada (${ratio}× tu media).`}
+  const mid=Math.max(24,win-24);
+
+  const base={hrs:Math.round(hrs),act:lastAct,ratio,acute7:Math.round(acute7),sesiones7,win};
+  if(hrs<mid)return{...base,level:'red',
+    msg:`Solo ${Math.round(hrs)}h desde "${lastAct}". Tendones (FDP/FDS) y poleas en recuperación incompleta.${acum} Evita cargar dedos hoy.`};
+  if(hrs<win)return{...base,level:'amber',
+    msg:`${Math.round(hrs)}h desde "${lastAct}". Recuperación aceptable pero no óptima.${acum} Para máximo rendimiento espera a ${win}h.`};
+  return{...base,level:'green',
+    msg:`${Math.round(hrs)}h desde "${lastAct}". Tendones recuperados (ventana ${win}h cumplida). Condiciones óptimas para cargar dedos.`};
 }
 
 export function calcReadiness(ban,cal,t25){
