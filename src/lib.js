@@ -142,6 +142,18 @@ export function calcReadiness(ban,cal,t25){
 // ───────────────────────── CSV import/export
 export function parseRow(line){const r=[];let cur='',inQ=false;for(let c=0;c<line.length;c++){const ch=line[c];if(inQ){if(ch==='"'&&line[c+1]==='"'){cur+='"';c++}else if(ch==='"'){inQ=false}else{cur+=ch}}else{if(ch==='"'){inQ=true}else if(ch===','){r.push(cur);cur=''}else{cur+=ch}}}r.push(cur);return r}
 
+// ───────────────────────── REGLETA / EDGE
+// Devuelve el último tamaño de regleta usado (mm), para no fijar ningún valor por defecto.
+// Si no hay historial, cae a 20mm (estándar de referencia en la literatura).
+export function lastEdge(treg,fallback=20){
+  const s=[...(treg||[])].filter(r=>r&&r.mm&&Number(r.mm)>0).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  return s.length?Number(s[0].mm):fallback;
+}
+// Lista de tamaños de regleta presentes en el historial, ordenados desc.
+export function edgeSizes(treg){
+  return [...new Set((treg||[]).map(r=>Number(r.mm)).filter(n=>n>0))].sort((a,b)=>b-a);
+}
+
 // ───────────────────────── SUSPENSIONS BERGUA MODULE
 // Auto-MVC: pulls most recent Tindeq value, calculates target load at intensity%.
 // Warns if MVC is stale (>7d). Tracks completed vs programmed sets + inter-set loss.

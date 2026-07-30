@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine } from "recharts";
-import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup } from "./lib.js";
+import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
 import { CSS } from "./styles.js";
 
 const MINFO={
@@ -209,9 +209,10 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
 
 /* ───────── ENTRENAMIENTOS ───────── */
 function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+  const lastMm=useMemo(()=>lastEdge(treg),[treg]);
   const TIPOS=['Rocòdrom','Suspensions/Dominades','Gimnàs'];
   const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:''});
-  const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
+  const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const sB=(i,f,v)=>{const b=[...form.bloques];b[i]={...b[i],[f]:v};setForm({...form,bloques:b})};
@@ -226,7 +227,8 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
       // 25mm pre-session → Tindeq 25mm tab
       if(form.t25i&&form.t25d&&st25&&!t25.some(r=>r.fecha===form.fecha)){st25([...t25,{fecha:form.fecha,mm:25,esq:Number(form.t25i),dre:Number(form.t25d),id:xi(),src:'ent'}])}
       // Regleta pre-session → Tindeq Regleta tab
-      if(form.tri&&form.trd&&streg&&!treg.some(r=>r.fecha===form.fecha&&r.momento!=='post')){streg([...treg,{fecha:form.fecha,mm:16,esq:Number(form.tri),dre:Number(form.trd),id:xi(),momento:'pre',src:'ent'}])}
+      const mmVal=Number(form.treg_mm)||lastMm;
+      if(form.tri&&form.trd&&streg&&!treg.some(r=>r.fecha===form.fecha&&r.momento!=='post')){streg([...treg,{fecha:form.fecha,mm:mmVal,esq:Number(form.tri),dre:Number(form.trd),id:xi(),momento:'pre',src:'ent'}])}
     }
     setShow(false);setEid(null);setForm(blank)};
   const gB=r=>{if(r.bloques&&Array.isArray(r.bloques)&&r.bloques.length)return r.bloques;const b=[];if(r.parte_gen)b.push({tipo:'General',ejercicios:(r.parte_gen||'').split(' , '),minutos:r.min_gen,rpe:r.rpe_gen,carga:r.carga_gen});if(r.ej_esp)b.push({tipo:'Específica',ejercicios:(r.ej_esp||'').split(' , '),minutos:r.min_esp,rpe:r.rpe_esp,carga:r.carga_esp});return b};
@@ -239,7 +241,8 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
       <div className="row-3"><F label="FC media" value={form.hr_avg} onChange={v=>setForm({...form,hr_avg:v})} type="number"/><F label="FC máx" value={form.hr_max} onChange={v=>setForm({...form,hr_max:v})} type="number"/><F label="Calorías" value={form.calorias} onChange={v=>setForm({...form,calorias:v})} type="number"/></div>
       <div className="sh a">📏 Tindeq</div>
       <div className="row-2"><F label="25mm Izq" value={form.t25i} onChange={v=>setForm({...form,t25i:v})} type="number"/><F label="25mm Dch" value={form.t25d} onChange={v=>setForm({...form,t25d:v})} type="number"/></div>
-      <div className="row-2"><F label="Regleta Izq PRE" value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label="Regleta Dch PRE" value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
+      <F label={`Tamaño regleta (mm) — último usado: ${lastMm}`} value={form.treg_mm} onChange={v=>setForm({...form,treg_mm:v})} type="number" min={5} max={40}/>
+      <div className="row-2"><F label={`Regleta Izq PRE`} value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label={`Regleta Dch PRE`} value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
       <div className="row-2"><F label="Regleta Izq POST" value={form.tri_post} onChange={v=>setForm({...form,tri_post:v})} type="number"/><F label="Regleta Dch POST" value={form.trd_post} onChange={v=>setForm({...form,trd_post:v})} type="number"/></div>
       {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'#9B3A3A':fl>25?'#D4563A':fl>15?'#E8A838':'#6B9F4A'}}>Pérdida de fuerza: {fl}%</div>}
       <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar estos valores también en la pestaña Tindeq</label>
@@ -320,50 +323,99 @@ function LibP({data,save,sects}){const[show,setShow]=useState(false);const[eid,s
 }
 
 /* ───────── TINDEQ ───────── */
-function TqP({t25,treg,st25,streg}){const[tab,setTab]=useState('25');const[show,setShow]=useState(false);
-  const[f25,sF]=useState({fecha:td(),esq:'',dre:''});const[fR,sR]=useState({fecha:td(),mm:16,esq:'',dre:''});
-  const data=tab==='25'?t25:treg;
+function TqP({t25,treg,st25,streg}){
+  const[tab,setTab]=useState('25');const[show,setShow]=useState(false);const[eid,setEid]=useState(null);const[fmm,setFmm]=useState('');
+  const lastMm=useMemo(()=>lastEdge(treg),[treg]);
+  const sizes=useMemo(()=>edgeSizes(treg),[treg]);
+  const raw=tab==='25'?t25:treg;
+  const data=useMemo(()=>tab==='reg'&&fmm?raw.filter(r=>String(r.mm)===String(fmm)):raw,[raw,tab,fmm]);
   const chart=useMemo(()=>[...data].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),i:Number(r.esq)||0,d:Number(r.dre)||0})),[data]);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
-  const del=(id,isT25)=>{if(isT25)st25(t25.filter(r=>r.id!==id));else streg(treg.filter(r=>r.id!==id))};
+  const blank=()=>({fecha:td(),mm:tab==='25'?25:(fmm||lastMm),esq:'',dre:'',momento:''});
+  const[form,setForm]=useState(blank());
+  const open=()=>{setEid(null);setForm(blank());setShow(true)};
+  const edit=r=>{setForm({fecha:r.fecha||td(),mm:r.mm||(tab==='25'?25:lastMm),esq:r.esq??'',dre:r.dre??'',momento:r.momento||''});setEid(r.id);setShow(true)};
+  const sub=()=>{
+    const e={...form,mm:Number(form.mm)||(tab==='25'?25:lastMm),esq:Number(form.esq)||'',dre:Number(form.dre)||''};
+    if(tab==='25'){eid?st25(t25.map(r=>r.id===eid?{...r,...e,id:eid}:r)):st25([...t25,{...e,id:xi()}])}
+    else{eid?streg(treg.map(r=>r.id===eid?{...r,...e,id:eid}:r)):streg([...treg,{...e,id:xi()}])}
+    setShow(false);setEid(null)};
+  const del=()=>{if(tab==='25')st25(t25.filter(r=>r.id!==eid));else streg(treg.filter(r=>r.id!==eid));setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Tindeq</h2>
-    <div className="tabs"><button className={`tb${tab==='25'?' ac':''}`} onClick={()=>setTab('25')}>25mm ({t25.length})</button><button className={`tb${tab==='reg'?' ac':''}`} onClick={()=>setTab('reg')}>Regleta ({treg.length})</button></div>
-    {chart.length>2&&<div className="card"><div className="card-t">Evolución</div><ResponsiveContainer width="100%" height={200}><LineChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={9}/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Legend/><Line type="monotone" dataKey="i" stroke="#E8A838" name="Izq" dot={false} strokeWidth={2}/><Line type="monotone" dataKey="d" stroke="#3A8FB7" name="Dch" dot={false} strokeWidth={2}/></LineChart></ResponsiveContainer></div>}
-    <div className="card lc">{sorted.slice(0,40).map((r,i)=><div key={r.id||i} className="list-row"><div className="lr-l"><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.mm&&<span className="lr-s" style={{marginLeft:8}}>{r.mm}mm</span>}</div><div style={{display:'flex',alignItems:'center',gap:12}}><span className="tq-l">I:{r.esq}N</span><span className="tq-r">D:{r.dre}N</span>{r.id&&<button className="del-inline" onClick={e=>{e.stopPropagation();if(window.confirm('¿Eliminar?'))del(r.id,tab==='25')}}>🗑</button>}</div></div>)}</div>
-    <Modal open={show} onClose={()=>setShow(false)} title={`Test ${tab==='25'?'25mm':'Regleta'}`}><F label="Fecha" value={tab==='25'?f25.fecha:fR.fecha} onChange={v=>tab==='25'?sF({...f25,fecha:v}):sR({...fR,fecha:v})} type="date"/>{tab==='reg'&&<F label="mm" value={fR.mm} onChange={v=>sR({...fR,mm:v})} type="number"/>}<div className="row-2"><F label="Izq (N)" value={tab==='25'?f25.esq:fR.esq} onChange={v=>tab==='25'?sF({...f25,esq:v}):sR({...fR,esq:v})} type="number"/><F label="Dch (N)" value={tab==='25'?f25.dre:fR.dre} onChange={v=>tab==='25'?sF({...f25,dre:v}):sR({...fR,dre:v})} type="number"/></div><button className="btn-primary btn-full" onClick={()=>{if(tab==='25')st25([...t25,{...f25,id:xi(),mm:25}]);else streg([...treg,{...fR,id:xi()}]);setShow(false)}}>Registrar</button></Modal>
-    <Fab onClick={()=>setShow(true)}/>
+    <div className="tabs"><button className={`tb${tab==='25'?' ac':''}`} onClick={()=>{setTab('25');setFmm('')}}>25mm ({t25.length})</button><button className={`tb${tab==='reg'?' ac':''}`} onClick={()=>setTab('reg')}>Regleta ({treg.length})</button></div>
+    {tab==='reg'&&sizes.length>1&&<div className="pills"><button className={`pill${!fmm?' active':''}`} onClick={()=>setFmm('')}>Todas ({treg.length})</button>{sizes.map(m=><button key={m} className={`pill${String(fmm)===String(m)?' active':''}`} onClick={()=>setFmm(m)}>{m}mm ({treg.filter(r=>Number(r.mm)===m).length})</button>)}</div>}
+    {tab==='reg'&&sizes.length>1&&!fmm&&<div className="mvc-warn" style={{marginBottom:12}}>⚠ Estás viendo tamaños de regleta distintos en el mismo gráfico. Filtra por mm para comparar valores equivalentes.</div>}
+    {chart.length>2&&<div className="card"><div className="card-t">Evolución{tab==='reg'&&fmm?` — ${fmm}mm`:''}</div><ResponsiveContainer width="100%" height={200}><LineChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={9}/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Legend/><Line type="monotone" dataKey="i" stroke="#E8A838" name="Izq" dot={false} strokeWidth={2}/><Line type="monotone" dataKey="d" stroke="#3A8FB7" name="Dch" dot={false} strokeWidth={2}/></LineChart></ResponsiveContainer></div>}
+    <div className="card lc">{sorted.slice(0,60).map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>edit(r)}><div className="lr-l"><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.mm&&<span className="lr-s" style={{marginLeft:8}}>{r.mm}mm</span>}{r.momento&&<span className="lr-s" style={{marginLeft:6}}>{r.momento}</span>}</div><div style={{display:'flex',alignItems:'center',gap:12}}><span className="tq-l">I:{r.esq}N</span><span className="tq-r">D:{r.dre}N</span></div></div>)}</div>
+    <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar registro':`Nuevo test ${tab==='25'?'25mm':'regleta'}`}>
+      <F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/>
+      <F label="Tamaño regleta (mm)" value={form.mm} onChange={v=>setForm({...form,mm:v})} type="number" min={5} max={40}/>
+      <div className="row-2"><F label="Izq (N)" value={form.esq} onChange={v=>setForm({...form,esq:v})} type="number"/><F label="Dch (N)" value={form.dre} onChange={v=>setForm({...form,dre:v})} type="number"/></div>
+      <F label="Momento" value={form.momento} onChange={v=>setForm({...form,momento:v})} options={['pre','post']}/>
+      <button className="btn-primary btn-full" onClick={sub}>{eid?'Guardar cambios':'Registrar'}</button>
+      {eid&&<DelBtn onDel={del} label="este registro"/>}
+    </Modal>
+    <Fab onClick={open}/>
   </div>);
 }
 
 /* ───────── PESO ───────── */
-function PesoP({data,save}){const[show,setShow]=useState(false);const[form,setForm]=useState({fecha:td(),peso:'',altura:177,grasa:'',obs:''});
+function PesoP({data,save}){
+  const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+  const blank={fecha:td(),peso:'',altura:177,grasa:'',obs:''};
+  const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const chart=useMemo(()=>[...data].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),p:Number(r.peso)||0})),[data]);
+  const sub=()=>{if(eid)save(data.map(r=>r.id===eid?{...form,id:eid}:r));else save([...data,{...form,id:xi()}]);setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Peso</h2>
     {chart.length>2&&<div className="card"><div className="card-t">Evolución</div><ResponsiveContainer width="100%" height={180}><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={10}/><YAxis domain={['auto','auto']} stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Area type="monotone" dataKey="p" stroke="#9B6BB7" fill="#9B6BB733" name="kg"/></AreaChart></ResponsiveContainer></div>}
-    <div className="card lc">{sorted.map((r,i)=><div key={r.id||i} className="list-row"><div className="lr-l"><span style={{fontSize:16,fontWeight:700,color:'#9B6BB7'}}>{r.peso} kg</span></div><div style={{display:'flex',alignItems:'center',gap:12}}><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.id&&<button className="del-inline" onClick={e=>{e.stopPropagation();if(window.confirm('¿Eliminar?'))save(data.filter(x=>x.id!==r.id))}}>🗑</button>}</div></div>)}</div>
-    <Modal open={show} onClose={()=>setShow(false)} title="Peso"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/><div className="row-2"><F label="Peso (kg)" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number" step="0.1"/><F label="Altura" value={form.altura} onChange={v=>setForm({...form,altura:v})} type="number"/></div><F label="% Grasa" value={form.grasa} onChange={v=>setForm({...form,grasa:v})} type="number" step="0.01"/><button className="btn-primary btn-full" onClick={()=>{save([...data,{...form,id:xi()}]);setShow(false)}}>Registrar</button></Modal>
-    <Fab onClick={()=>setShow(true)}/>
+    <div className="card lc">{sorted.map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>{setForm({...blank,...r});setEid(r.id);setShow(true)}}><div className="lr-l"><span style={{fontSize:16,fontWeight:700,color:'#9B6BB7'}}>{r.peso} kg</span>{r.grasa&&<span className="lr-s" style={{marginLeft:8}}>{r.grasa}%</span>}</div><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>)}</div>
+    <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar peso':'Nuevo peso'}>
+      <F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/>
+      <div className="row-2"><F label="Peso (kg)" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number" step="0.1"/><F label="Altura (cm)" value={form.altura} onChange={v=>setForm({...form,altura:v})} type="number"/></div>
+      <F label="% Grasa" value={form.grasa} onChange={v=>setForm({...form,grasa:v})} type="number" step="0.1"/>
+      <F label="Obs" value={form.obs} onChange={v=>setForm({...form,obs:v})}/>
+      <button className="btn-primary btn-full" onClick={sub}>{eid?'Guardar cambios':'Registrar'}</button>
+      {eid&&<DelBtn onDel={()=>{save(data.filter(r=>r.id!==eid));setShow(false);setEid(null)}} label="este registro"/>}
+    </Modal>
+    <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
   </div>);
 }
 
 /* ───────── TESTS ───────── */
-function TestP({tests,save}){const[showNew,setShowNew]=useState(false);const[detail,setDetail]=useState(null);
-  const bl={id:'',fecha:'',nombre:'JOAN LOPEZ',peso:'',gradoRP:'',gradoObj:'',MHT14:'',MED40:'',MAW5:'',OT:'',CF:'',RFD:'',curva:[{i:1,t:''},{i:.85,t:''},{i:.75,t:''},{i:.65,t:''},{i:.55,t:''},{i:.45,t:''},{i:.35,t:''}]};
-  const[form,setForm]=useState(bl);const sorted=useMemo(()=>[...tests].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[tests]);const latest=sorted[0]||DT;
-  const sC=(i,v)=>{const c=[...form.curva];c[i]={...c[i],t:v};setForm({...form,curva:c})};
-  const sub=()=>{const p=Number(form.peso)||83,m=Number(form.MAW5)||0,fx=p+m;save([...tests,{...form,id:xi(),fmaxRegleta:fx,cargaRegleta:Number(form.MED40)||16}]);setShowNew(false);setForm(bl)};
-  // RFD retest reminder
+function TestP({tests,save}){
+  const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+  const bl={fecha:'',nombre:'JOAN LOPEZ',peso:'',gradoRP:'',gradoObj:'',MHT14:'',MED40:'',MAW5:'',OT:'',CF:'',RFD:'',curva:[{i:1,t:''},{i:.85,t:''},{i:.75,t:''},{i:.65,t:''},{i:.55,t:''},{i:.45,t:''},{i:.35,t:''}]};
+  const[form,setForm]=useState(bl);
+  const sorted=useMemo(()=>[...tests].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[tests]);
+  const latest=sorted[0]||DT;
+  const sC=(i,v)=>{const cu=[...form.curva];cu[i]={...cu[i],t:v};setForm({...form,curva:cu})};
+  const sub=()=>{const p=Number(form.peso)||83,m=Number(form.MAW5)||0,fx=p+m;
+    const e={...form,fmaxRegleta:fx,cargaRegleta:Number(form.MED40)||''};
+    if(eid)save(tests.map(t=>t.id===eid?{...t,...e,id:eid}:t));else save([...tests,{...e,id:xi()}]);
+    setShow(false);setEid(null);setForm(bl)};
+  const edit=t=>{setForm({...bl,...t,curva:Array.isArray(t.curva)&&t.curva.length?t.curva:bl.curva});setEid(t.id);setShow(true)};
   const rfdTests=sorted.filter(t=>t.RFD&&Number(t.RFD)>0);
   const lastRFD=rfdTests[0];
   const rfdDays=lastRFD?Math.round((new Date(td())-new Date(lastRFD.fecha+'-01'))/864e5):999;
-  return(<div className="page"><div className="p-tr"><h2 className="p-title">Tests ({tests.length})</h2><button className="btn-sm" onClick={()=>{setForm(bl);setShowNew(true)}}>+ Nuevo</button></div>
+  return(<div className="page"><div className="p-tr"><h2 className="p-title">Tests ({tests.length})</h2><button className="btn-sm" onClick={()=>{setEid(null);setForm(bl);setShow(true)}}>+ Nuevo</button></div>
     {rfdDays>120&&<div className="tendon-banner amber"><span>🔬</span><div style={{fontSize:12}}><b>Re-test RFD pendiente</b><div>Hace {lastRFD?Math.round(rfdDays/30)+' meses':'mucho'} sin medir RFD. Es tu punto ciego — re-testa al cerrar el mesociclo.</div></div></div>}
-    <div className="card"><div className="card-t">Actual — {latest.fecha}</div><div className="profile-grid">{[['RP',latest.gradoRP,'a'],['Obj',latest.gradoObj,'r'],['Peso',latest.peso+'kg'],['MHT14',latest.MHT14+'s'],['MED40',latest.MED40+'mm'],['MAW5',latest.MAW5+'kg'],['OT',latest.OT+'%','a'],['CF',latest.CF+'%'],['Fmáx',latest.fmaxRegleta+'kg']].map(([l,v,c])=><div key={l} className="pf"><span className="pf-l">{l}</span><span className={`pf-v${c?' '+c:''}`}>{v}</span></div>)}</div></div>
-    {latest.curva?.length>0&&<div className="card"><div className="card-t">Curva Individual</div><ResponsiveContainer width="100%" height={170}><LineChart data={latest.curva.map(c=>({i:c.i,t:c.t||c.tiempo}))}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="i" stroke="#8B7D6B" reversed/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Line dataKey="t" stroke="#E8A838" strokeWidth={2} name="s"/></LineChart></ResponsiveContainer></div>}
-    <div className="card"><div className="card-t">Historial</div>{sorted.map((t,i)=><div key={t.id||i} className="list-row" onClick={()=>setDetail(t)}><div className="lr-l"><span className="lr-e">🧪</span><div><div className="lr-m">{t.fecha} — {t.gradoRP}</div><div className="lr-s">MHT14:{t.MHT14}s · MAW5:{t.MAW5}kg · OT:{t.OT}%</div></div></div><div style={{display:'flex',alignItems:'center',gap:8}}><span className="lr-d">{t.peso}kg</span>{t.id&&i>0&&<button className="del-inline" onClick={e=>{e.stopPropagation();if(window.confirm('¿Eliminar?'))save(tests.filter(x=>x.id!==t.id))}}>🗑</button>}</div></div>)}</div>
-    <Modal open={!!detail} onClose={()=>setDetail(null)} title={`Test ${detail?.fecha}`}>{detail&&<div className="profile-grid" style={{gap:12}}>{[['Peso',detail.peso+'kg'],['RP',detail.gradoRP],['Obj',detail.gradoObj],['MHT14',detail.MHT14+'s'],['MED40',detail.MED40+'mm'],['MAW5',detail.MAW5+'kg'],['OT',detail.OT+'%'],['CF',detail.CF+'%'],['RFD',(detail.RFD||'—')],['Fmáx',(detail.fmaxRegleta||'—')+'kg']].map(([l,v])=><div key={l} className="pf"><span className="pf-l">{l}</span><span className="pf-v">{v}</span></div>)}</div>}</Modal>
-    <Modal open={showNew} onClose={()=>setShowNew(false)} title="Nuevo Test"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})}/><div className="row-2"><F label="Peso" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number"/><F label="RP" value={form.gradoRP} onChange={v=>setForm({...form,gradoRP:v})}/></div><F label="Obj" value={form.gradoObj} onChange={v=>setForm({...form,gradoObj:v})}/><div className="sh a">Tests Bergua</div><div className="row-2"><F label="MHT14(s)" value={form.MHT14} onChange={v=>setForm({...form,MHT14:v})} type="number"/><F label="MED40(mm)" value={form.MED40} onChange={v=>setForm({...form,MED40:v})} type="number"/></div><div className="row-2"><F label="MAW5(kg)" value={form.MAW5} onChange={v=>setForm({...form,MAW5:v})} type="number"/><F label="OT%" value={form.OT} onChange={v=>setForm({...form,OT:v})} type="number"/></div><div className="row-2"><F label="CF%" value={form.CF} onChange={v=>setForm({...form,CF:v})} type="number"/><F label="RFD (N/s)" value={form.RFD} onChange={v=>setForm({...form,RFD:v})} type="number"/></div><div className="sh a">Curva (s al fallo)</div>{[[0,'100%'],[1,'85%'],[2,'75%'],[3,'65%'],[4,'55%'],[5,'45%'],[6,'35%']].map(([i,l])=><div key={i} className="row-2"><div className="f-wrap"><label className="f-label">{l}</label></div><div className="f-wrap"><input className="f-input" type="number" value={form.curva[i]?.t??''} onChange={e=>sC(i,Number(e.target.value)||'')}/></div></div>)}<button className="btn-primary btn-full" onClick={sub} style={{marginTop:16}}>Guardar</button></Modal>
+    <div className="card"><div className="card-t">Actual — {latest.fecha}</div><div className="profile-grid">{[['RP',latest.gradoRP,'a'],['Obj',latest.gradoObj,'r'],['Peso',latest.peso+'kg'],['MHT14',latest.MHT14+'s'],['MED40',latest.MED40+'mm'],['MAW5',latest.MAW5+'kg'],['OT',latest.OT+'%','a'],['CF',latest.CF+'%'],['Fmáx',latest.fmaxRegleta+'kg']].map(([l,v,cl])=><div key={l} className="pf"><span className="pf-l">{l}</span><span className={`pf-v${cl?' '+cl:''}`}>{v}</span></div>)}</div></div>
+    {latest.curva?.length>0&&<div className="card"><div className="card-t">Curva Individual</div><ResponsiveContainer width="100%" height={170}><LineChart data={latest.curva.map(cu=>({i:cu.i,t:cu.t||cu.tiempo}))}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="i" stroke="#8B7D6B" reversed/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Line dataKey="t" stroke="#E8A838" strokeWidth={2} name="s"/></LineChart></ResponsiveContainer></div>}
+    <div className="card"><div className="card-t">Historial — toca para editar</div>{sorted.map((t,i)=><div key={t.id||i} className="list-row" onClick={()=>edit(t)}><div className="lr-l"><span className="lr-e">🧪</span><div><div className="lr-m">{t.fecha} — {t.gradoRP}</div><div className="lr-s">MHT14:{t.MHT14}s · MAW5:{t.MAW5}kg · OT:{t.OT}%</div></div></div><span className="lr-d">{t.peso}kg</span></div>)}</div>
+    <Modal open={show} onClose={()=>setShow(false)} title={eid?`Editar test ${form.fecha||''}`:'Nuevo Test'}>
+      <F label="Fecha (ej. 2026-07)" value={form.fecha} onChange={v=>setForm({...form,fecha:v})}/>
+      <div className="row-2"><F label="Peso" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number"/><F label="RP" value={form.gradoRP} onChange={v=>setForm({...form,gradoRP:v})}/></div>
+      <F label="Obj" value={form.gradoObj} onChange={v=>setForm({...form,gradoObj:v})}/>
+      <div className="sh a">Tests Bergua</div>
+      <div className="row-2"><F label="MHT14(s)" value={form.MHT14} onChange={v=>setForm({...form,MHT14:v})} type="number"/><F label="MED40(mm)" value={form.MED40} onChange={v=>setForm({...form,MED40:v})} type="number"/></div>
+      <div className="row-2"><F label="MAW5(kg)" value={form.MAW5} onChange={v=>setForm({...form,MAW5:v})} type="number"/><F label="OT%" value={form.OT} onChange={v=>setForm({...form,OT:v})} type="number"/></div>
+      <div className="row-2"><F label="CF%" value={form.CF} onChange={v=>setForm({...form,CF:v})} type="number"/><F label="RFD (N/s)" value={form.RFD} onChange={v=>setForm({...form,RFD:v})} type="number"/></div>
+      <div className="sh a">Curva (s al fallo)</div>
+      {[[0,'100%'],[1,'85%'],[2,'75%'],[3,'65%'],[4,'55%'],[5,'45%'],[6,'35%']].map(([i,l])=><div key={i} className="row-2"><div className="f-wrap"><label className="f-label">{l}</label></div><div className="f-wrap"><input className="f-input" type="number" value={form.curva[i]?.t??''} onChange={e=>sC(i,Number(e.target.value)||'')}/></div></div>)}
+      <button className="btn-primary btn-full" onClick={sub} style={{marginTop:16}}>{eid?'Guardar cambios':'Guardar'}</button>
+      {eid&&<DelBtn onDel={()=>{save(tests.filter(t=>t.id!==eid));setShow(false);setEid(null)}} label="este test"/>}
+    </Modal>
   </div>);
 }
 
