@@ -16,16 +16,17 @@
 import { ld, sv } from './lib.js';
 
 /* ---------------------------------------------------------------
-   VERIFICA ESTO ANTES DE USARLO
-   Son las claves con las que la app guarda cada colección.
-   Las he deducido del objeto `sd` de la función `imp`.
-   Si alguna no coincide con la real, corrígela aquí y ya está.
+   Claves reales de tu app, verificadas en App.jsx el 15-08-2026.
+   La bandera 'ct5_init' NO va aquí: no es una colección.
    --------------------------------------------------------------- */
-export const CLAVES = ['cal', 'roca', 'ent', 'lib', 't25', 'treg', 'dp', 'tests'];
+export const CLAVES = [
+  'ct5_cal', 'ct5_ent', 'ct5_roca', 'ct5_lib',
+  'ct5_t25', 'ct5_treg', 'ct5_dp', 'ct5_tests',
+];
 
-const K_VERSION = 'schemaVersion';
-const K_LOG     = 'migrationLog';
-const K_BACKUP  = 'preMigrationBackup';
+const K_VERSION = 'ct5_schemaVersion';
+const K_LOG     = 'ct5_migrationLog';
+const K_BACKUP  = 'ct5_preMigrationBackup';
 
 /** Sube este número cada vez que añadas una migración. */
 export const ESQUEMA_ACTUAL = 1;

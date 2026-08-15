@@ -104,7 +104,7 @@ export function parseEjercicio(texto) {
    No borra nada: añade `ejerciciosCat` junto a `ejercicios`.
    ------------------------------------------------------------------ */
 export function migrarBloquesACatalogo(datos) {
-  const ent = (datos.ent || []).map(sesion => {
+  const ent = (datos.ct5_ent || []).map(sesion => {
     let bloques = sesion.bloques;
     if (typeof bloques === 'string') {
       try { bloques = JSON.parse(bloques); } catch { return sesion; }
@@ -117,7 +117,7 @@ export function migrarBloquesACatalogo(datos) {
     }));
     return { ...sesion, bloques: nuevos };
   });
-  return { ...datos, ent };
+  return { ...datos, ct5_ent: ent };
 }
 
 /* ------------------------------------------------------------------
