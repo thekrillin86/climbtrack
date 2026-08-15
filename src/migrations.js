@@ -14,6 +14,7 @@
  */
 
 import { ld, sv } from './lib.js';
+import { migrarBloquesACatalogo } from './catalogo.js';
 
 /* ---------------------------------------------------------------
    Claves reales de tu app, verificadas en App.jsx el 15-08-2026.
@@ -29,7 +30,7 @@ const K_LOG     = 'ct5_migrationLog';
 const K_BACKUP  = 'ct5_preMigrationBackup';
 
 /** Sube este número cada vez que añadas una migración. */
-export const ESQUEMA_ACTUAL = 1;
+export const ESQUEMA_ACTUAL = 2;
 
 /**
  * Cada entrada transforma TODO el conjunto de datos y devuelve uno nuevo.
@@ -39,6 +40,11 @@ export const ESQUEMA_ACTUAL = 1;
 export const MIGRACIONES = {
   // 1 → esquema original. No hace nada; solo marca el punto de partida.
   1: datos => datos,
+
+  // 2 → catálogo de ejercicios. Convierte el texto libre de cada bloque en
+  //     { tipo, params, agarre } y CONSERVA el texto original en cada uno.
+  //     No borra el array `ejercicios`: añade `ejerciciosCat` al lado.
+  2: migrarBloquesACatalogo,
 };
 
 /* --------------------------- utilidades --------------------------- */
