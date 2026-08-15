@@ -15,6 +15,7 @@
 
 import { ld, sv } from './lib.js';
 import { migrarBloquesACatalogo } from './catalogo.js';
+import { migrarSuunto } from './suunto.js';
 
 /* ---------------------------------------------------------------
    Claves reales de tu app, verificadas en App.jsx el 15-08-2026.
@@ -30,7 +31,7 @@ const K_LOG     = 'ct5_migrationLog';
 const K_BACKUP  = 'ct5_preMigrationBackup';
 
 /** Sube este número cada vez que añadas una migración. */
-export const ESQUEMA_ACTUAL = 2;
+export const ESQUEMA_ACTUAL = 3;
 
 /**
  * Cada entrada transforma TODO el conjunto de datos y devuelve uno nuevo.
@@ -41,10 +42,14 @@ export const MIGRACIONES = {
   // 1 → esquema original. No hace nada; solo marca el punto de partida.
   1: datos => datos,
 
-  // 2 → catálogo de ejercicios. Convierte el texto libre de cada bloque en
-  //     { tipo, params, agarre } y CONSERVA el texto original en cada uno.
-  //     No borra el array `ejercicios`: añade `ejerciciosCat` al lado.
+  // 2 → catálogo de ejercicios. El texto libre de cada bloque pasa a ser
+  //     { tipo, params, agarre }, conservando el original en cada uno.
   2: migrarBloquesACatalogo,
+
+  // 3 → datos del reloj. "Suunto 236min HR79/129 893kcal" deja de ser una
+  //     frase y pasa a sesion.suunto = { min, hr_med, hr_max, kcal }.
+  //     No toca el campo obs.
+  3: migrarSuunto,
 };
 
 /* --------------------------- utilidades --------------------------- */
