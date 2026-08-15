@@ -4,6 +4,7 @@ import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg
 import { ejecutarMigraciones } from './migrations.js';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
+import DashP from './DashP.jsx';
 import { CSS } from "./styles.js";
 
 const MINFO={
@@ -87,7 +88,7 @@ export default function App(){
       {bkp.overdue&&<button className="bkp-warn" onClick={doExport}>⚠ Backup {bkp.never?'nunca':bkp.days+'d'}</button>}
     </header>
     <main className="content">
-      {page==='dash'&&<Dash cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg} tp={tp}/>}
+      {page==='dash'&&<DashP cal={cal} ent={ent} t25={t25} treg={treg}/>}
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}
       {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises} t25={t25} st25={d=>s('ct5_t25',d,setT25)} treg={treg} streg={d=>s('ct5_treg',d,setTreg)}/>}
       {page==='roca'&&<RocP data={roca} save={d=>s('ct5_roca',d,setRoca)} sects={sects} vias={vias} lib={lib} saveLib={d=>s('ct5_lib',d,setLib)}/>}
