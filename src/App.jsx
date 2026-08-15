@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine } from "recharts";
 import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
 import { ejecutarMigraciones } from './migrations.js';
+import { AGARRES, sugerirAgarres } from './agarres.js';
 import { CSS } from "./styles.js";
 
 const MINFO={
@@ -271,10 +272,11 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
 
 /* ───────── ROCA ───────── */
 function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
-  const blank={fecha:td(),lloc:'',via:'',grau:'',intentos_rpe:[5],fatiga_ini:1,fatiga_fin:1,encadene:'NO',obs:''};
+  const blank={fecha:td(),lloc:'',via:'',grau:'',intentos_rpe:[5],agarres:[],fatiga_ini:1,fatiga_fin:1,encadene:'NO',obs:''};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const fV=useMemo(()=>{if(!form.lloc)return vias;const s=[...new Set([...data.filter(r=>r.lloc===form.lloc).map(r=>r.via),...lib.filter(r=>r.sector===form.lloc).map(r=>r.via)].filter(Boolean))].sort();return s.length?s:vias},[form.lloc,data,lib,vias]);
+  useEffect(()=>{if(!form.via)return;setForm(f=>(f.agarres&&f.agarres.length)?f:{...f,agarres:sugerirAgarres(data,f.via,f.lloc)})},[form.via,form.lloc]);
   const sR=(idx,val)=>{const a=[...form.intentos_rpe];a[idx]=val;setForm({...form,intentos_rpe:a})};
   const sub=()=>{const ra=form.intentos_rpe.map(v=>Number(v)||0);const e={...form,intentos_rpe:ra,intents:ra.length};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else{save([...data,{...e,id:xi()}]);if(e.encadene==='SÍ'||e.encadene==='SI'){const d=new Date(e.fecha);const ms=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];saveLib([{id:xi(),num:lib.length+1,dia:d.getDate(),mes:ms[d.getMonth()],anyo:d.getFullYear(),sector:e.lloc,via:e.via,grado:e.grau,intentos:e.intents,obs:e.obs},...lib])}}setShow(false);setEid(null);setForm(blank)};
   const enc=r=>r.encadene==='SÍ'||r.encadene==='SI'||r.encadene===true;
@@ -284,6 +286,12 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
       <Combo label="Sector" value={form.lloc||''} onChange={v=>setForm({...form,lloc:v})} options={sects}/>
       <Combo label="Vía" value={form.via||''} onChange={v=>setForm({...form,via:v})} options={fV}/>
       <F label="Grado" value={form.grau} onChange={v=>setForm({...form,grau:v})} options={GR}/>
+      <div className="sh a">Agarres</div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+        {AGARRES.map(a=>{const on=(form.agarres||[]).includes(a.id);return(
+          <button key={a.id} type="button" onClick={()=>setForm(f=>({...f,agarres:on?(f.agarres||[]).filter(x=>x!==a.id):[...(f.agarres||[]),a.id]}))}
+            style={{padding:'6px 12px',borderRadius:16,fontSize:13,cursor:'pointer',border:'1px solid '+(on?'#E8A838':'#33291F'),background:on?'#E8A838':'transparent',color:on?'#1E1A15':'#E8D5B5'}}>{a.nombre}</button>)})}
+      </div>
       <div className="sh a">Intentos — RPE</div>
       {form.intentos_rpe.map((rpe,idx)=><div key={idx} className="rpe-row"><span className="rpe-num">#{idx+1}</span><div className="rpe-dots">{[1,2,3,4,5,6,7,8,9,10].map(v=><button key={v} className={`rpe-dot${rpe===v?' active':''}`} onClick={()=>sR(idx,v)}>{v}</button>)}</div>{form.intentos_rpe.length>1&&<button className="ej-rm" onClick={()=>setForm({...form,intentos_rpe:form.intentos_rpe.filter((_,i)=>i!==idx)})}>✕</button>}</div>)}
       <button className="ej-add" onClick={()=>setForm({...form,intentos_rpe:[...form.intentos_rpe,5]})}>+ Intento</button>
