@@ -10,6 +10,8 @@
  *     lo heredan.
  */
 
+import { ejerciciosDeBloque } from './catalogo.js';
+
 export const AGARRES = [
   { id: 'canto',      nombre: 'Canto',            orden: 1 },
   { id: 'reg_media',  nombre: 'Regleta mediana',  orden: 2 },
@@ -110,14 +112,25 @@ export function minutosPorAgarre(ent) {
     let bloques = s.bloques;
     if (typeof bloques === 'string') { try { bloques = JSON.parse(bloques); } catch { continue; } }
     for (const b of bloques || []) {
-      const ejs = b.ejerciciosCat || [];
+      const ejs = ejerciciosDeBloque(b);
       if (!ejs.length) continue;
       const cuota = (Number(b.minutos) || 0) / ejs.length;
       for (const e of ejs) {
-        const k = e.agarre && AGARRE_POR_ID[e.agarre] ? e.agarre : 'sin_marcar';
+        const k = agarreDe(e);
         acc[k] = Math.round(((acc[k] || 0) + cuota) * 10) / 10;
       }
     }
   }
   return acc;
+}
+
+/**
+ * Agarre de un ejercicio. Si ya viene puesto se respeta; si no, se deduce
+ * del tamaño de regleta. Así una suspensión apuntada hoy queda clasificada
+ * sin que haya que migrar nada.
+ */
+export function agarreDe(e) {
+  if (e?.agarre && AGARRE_POR_ID[e.agarre]) return e.agarre;
+  const a = agarrePorRegleta(e?.params?.regleta_mm);
+  return a || 'sin_marcar';
 }

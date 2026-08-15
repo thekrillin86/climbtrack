@@ -18,7 +18,7 @@
  * Todos los coeficientes están aquí arriba, a la vista, para que los toques.
  */
 
-import { TIPO_POR_ID } from './catalogo.js';
+import { TIPO_POR_ID, ejerciciosDeBloque } from './catalogo.js';
 
 /* ------------------------------------------------------------------
    PARÁMETROS — todos editables, ninguno es sagrado
@@ -119,7 +119,7 @@ export function cargaPorDetalle(sesionEnt) {
   const r = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {} };
 
   for (const b of bloques) {
-    const ejs = b.ejerciciosCat || [];
+    const ejs = ejerciciosDeBloque(b);
     if (!ejs.length) continue;
     hayDetalle = true;
     const min = Number(b.minutos) || 0;

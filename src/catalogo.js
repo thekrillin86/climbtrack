@@ -120,6 +120,20 @@ export function migrarBloquesACatalogo(datos) {
   return { ...datos, ct5_ent: ent };
 }
 
+/**
+ * Ejercicios estructurados de un bloque.
+ * Si el bloque ya está migrado, los devuelve. Si es nuevo y todavía lleva
+ * texto libre, lo clasifica al vuelo. Así una sesión apuntada hoy cuenta
+ * igual que una migrada, sin tener que tocar el formulario.
+ */
+export function ejerciciosDeBloque(bloque) {
+  if (!bloque) return [];
+  if (Array.isArray(bloque.ejerciciosCat) && bloque.ejerciciosCat.length) return bloque.ejerciciosCat;
+  const libres = bloque.ejercicios;
+  if (!Array.isArray(libres) || !libres.length) return [];
+  return libres.map(parseEjercicio);
+}
+
 /* ------------------------------------------------------------------
    Utilidades para la interfaz
    ------------------------------------------------------------------ */
@@ -145,7 +159,7 @@ export function agregar(sesiones, por = 'tipo') {
     let bloques = s.bloques;
     if (typeof bloques === 'string') { try { bloques = JSON.parse(bloques); } catch { continue; } }
     for (const b of bloques || []) {
-      const ejs = b.ejerciciosCat || [];
+      const ejs = ejerciciosDeBloque(b);
       if (!ejs.length) continue;
       const cuota = (Number(b.minutos) || 0) / ejs.length;
       for (const e of ejs) {
