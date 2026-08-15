@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine } from "recharts";
 import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
+import { ejecutarMigraciones } from './migrations.js';
 import { CSS } from "./styles.js";
 
 const MINFO={
@@ -44,7 +45,7 @@ export default function App(){
   const[dp,setDp]=useState([]);const[tests,setTests]=useState([DT]);
   const[init,setInit]=useState(false);const[menuOpen,setMenuOpen]=useState(false);const[bkp,setBkp]=useState({days:null,overdue:false});
 
-  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus())}}catch(e){console.error(e)}setLoading(false)})()},[]);
+  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){alert('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus())}}catch(e){console.error(e)}setLoading(false)})()},[]);
   const s=useCallback(async(k,d,fn)=>{fn(d);await sv(k,d)},[]);
   const initData=useCallback(async sd=>{for(const[k,v]of[['ct5_cal',sd.cal],['ct5_ent',sd.ent],['ct5_roca',sd.roca],['ct5_lib',sd.lib],['ct5_t25',sd.t25],['ct5_treg',sd.treg],['ct5_dp',sd.dp],['ct5_tests',sd.tests||[DT]],['ct5_init',true]])await sv(k,v);setCal(sd.cal);setEnt(sd.ent);setRoca(sd.roca);setLib(sd.lib);setT25(sd.t25);setTreg(sd.treg);setDp(sd.dp);setTests(sd.tests||[DT]);setInit(true)},[]);
   const sects=useMemo(()=>[...new Set([...lib.map(r=>r.sector),...roca.map(r=>r.lloc)].filter(Boolean))].sort(),[lib,roca]);
