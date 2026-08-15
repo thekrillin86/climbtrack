@@ -77,7 +77,7 @@ export default function App(){
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
   const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
-  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'âš¡',label:'Carga'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
+  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
 
   if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'#8B7D6B'}}>ClimbTrack v6</div></div></div>);
   if(!init)return<InitP onInit={initData}/>;
