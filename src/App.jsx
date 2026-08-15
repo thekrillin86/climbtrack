@@ -5,6 +5,7 @@ import { ejecutarMigraciones } from './migrations.js';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
+import CiclosP from './CiclosP.jsx';
 import { CSS } from "./styles.js";
 
 const MINFO={
@@ -78,7 +79,7 @@ export default function App(){
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
   const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
-  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
+  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
 
   if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'#8B7D6B'}}>ClimbTrack v6</div></div></div>);
   if(!init)return<InitP onInit={initData}/>;
@@ -97,10 +98,11 @@ export default function App(){
       {page==='peso'&&<PesoP data={dp} save={d=>s('ct5_dp',d,setDp)}/>}
       {page==='test'&&<TestP tests={tests} save={d=>s('ct5_tests',d,setTests)}/>}
       {page==='carga'&&<CargaP cal={cal} ent={ent}/>}
+      {page==='ciclos'&&<CiclosP cal={cal} ent={ent}/>}
       {page==='stats'&&<StP cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg}/>}
     </main>
     {menuOpen&&<div className="m-overlay" onClick={()=>setMenuOpen(false)}><div className="more-menu" onClick={e=>e.stopPropagation()}><div className="more-handle"/>{moreP.map(p=><button key={p.id} className="more-item" onClick={()=>{if(p.id==='export'){doExport();setMenuOpen(false)}else{setPage(p.id);setMenuOpen(false)}}}><span style={{fontSize:24}}>{p.icon}</span><span>{p.label}</span></button>)}</div></div>}
-    <nav className="bottom-nav">{tabs.map(t=><button key={t.id} className={`nav-tab${page===t.id||(t.id==='more'&&['lib','tindeq','peso','test','stats','carga'].includes(page))?' active':''}`} onClick={()=>{if(t.id==='more')setMenuOpen(!menuOpen);else{setPage(t.id);setMenuOpen(false)}}}><span className="nav-icon">{t.icon}</span><span className="nav-label">{t.label}</span></button>)}</nav>
+    <nav className="bottom-nav">{tabs.map(t=><button key={t.id} className={`nav-tab${page===t.id||(t.id==='more'&&['lib','tindeq','peso','test','stats','carga','ciclos'].includes(page))?' active':''}`} onClick={()=>{if(t.id==='more')setMenuOpen(!menuOpen);else{setPage(t.id);setMenuOpen(false)}}}><span className="nav-icon">{t.icon}</span><span className="nav-label">{t.label}</span></button>)}</nav>
   </div>);
 }
 

@@ -17,6 +17,7 @@ import { ld, sv } from './lib.js';
 import { migrarBloquesACatalogo } from './catalogo.js';
 import { migrarSuunto } from './suunto.js';
 import { migrarAgarres } from './agarres.js';
+import { migrarCiclos } from './ciclos.js';
 
 /* ---------------------------------------------------------------
    Claves reales de tu app, verificadas en App.jsx el 15-08-2026.
@@ -32,7 +33,7 @@ const K_LOG     = 'ct5_migrationLog';
 const K_BACKUP  = 'ct5_preMigrationBackup';
 
 /** Sube este número cada vez que añadas una migración. */
-export const ESQUEMA_ACTUAL = 4;
+export const ESQUEMA_ACTUAL = 5;
 
 /**
  * Cada entrada transforma TODO el conjunto de datos y devuelve uno nuevo.
@@ -55,6 +56,10 @@ export const MIGRACIONES = {
   // 4 → tipo de agarre en las suspensiones, deducido del tamaño de regleta.
   //     Roca y rocódromo se quedan sin marcar: eso lo pone Juan con los chips.
   4: migrarAgarres,
+
+  // 5 → corrige cinco registros de ciclo mal etiquetados: un ano mal escrito
+  //     y cuatro mesos que no existian. Confirmado con Juan el 15-08-2026.
+  5: migrarCiclos,
 };
 
 /* --------------------------- utilidades --------------------------- */
