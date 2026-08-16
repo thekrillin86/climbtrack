@@ -7,7 +7,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { iniciarNube, entrar, salir, subirTodo, leerResumenNube, descargarTodo, estadoNube } from './nube.js';
+import { iniciarNube, entrar, salir, subirTodo, leerResumenNube, descargarTodo, estadoNube,
+         listarHistorico, descargarHistorico, guardarHistorico } from './nube.js';
 import { CLAVES } from './migrations.js';
 import { ld } from './lib.js';
 
@@ -31,6 +32,7 @@ export default function NubeP({ onRestaurar }) {
   const [ocupado, setOcupado] = useState(false);
   const [local, setLocal] = useState(null);
   const [nube, setNube] = useState(null);
+  const [fotos, setFotos] = useState(null);
 
   useEffect(() => { iniciarNube(setEst); }, []);
 
@@ -51,6 +53,14 @@ export default function NubeP({ onRestaurar }) {
 
   useEffect(() => { refrescarNube(); }, [refrescarNube, est.ultimaSubida]);
 
+  const refrescarFotos = useCallback(async () => {
+    if (!est.usuario) { setFotos(null); return; }
+    const r = await listarHistorico();
+    setFotos(r.ok ? r.fotos : []);
+  }, [est.usuario]);
+
+  useEffect(() => { refrescarFotos(); }, [refrescarFotos]);
+
   const totalLocal = local ? Object.values(local).reduce((a, b) => a + b, 0) : null;
 
   /* ---------- acciones ---------- */
@@ -69,6 +79,27 @@ export default function NubeP({ onRestaurar }) {
     setOcupado(false);
     setMsg(r.ok ? { t: 'ok', x: `Subidos ${r.total} registros.` } : { t: 'err', x: r.error });
     refrescarNube();
+  };
+
+  const hacerFoto = async () => {
+    setOcupado(true); setMsg(null);
+    const r = await guardarHistorico(ld);
+    setOcupado(false);
+    setMsg(r.ok
+      ? { t: 'ok', x: r.nuevo ? `Foto guardada (${r.total} registros).` : 'La foto de esta semana ya estaba hecha.' }
+      : { t: 'err', x: r.error });
+    refrescarFotos();
+  };
+
+  const hacerVolverA = async id => {
+    setOcupado(true); setMsg(null);
+    const r = await descargarHistorico(id);
+    setOcupado(false);
+    if (!r.ok) { setMsg({ t: 'err', x: r.error }); return; }
+    const ok = await onRestaurar(r.datos);
+    setMsg(ok ? { t: 'ok', x: `Datos restaurados a la semana del ${id}.` }
+              : { t: 'err', x: 'Cancelado. No se ha tocado nada.' });
+    contarLocal();
   };
 
   const hacerRestaurar = async () => {
@@ -166,6 +197,33 @@ export default function NubeP({ onRestaurar }) {
             <div style={{ fontSize: 11, color: '#5E5445', marginTop: 8 }}>
               Primer número: lo que hay en este móvil. Segundo: lo que hay en la nube.
             </div>
+          </Caja>
+
+          <Caja>
+            <div className="sh a" style={{ marginBottom: 4 }}>Fotos semanales</div>
+            <div style={{ fontSize: 11, color: '#8B7D6B', marginBottom: 10, lineHeight: 1.5 }}>
+              El móvil y la nube están sincronizados: si algo borra un registro, se borra
+              en los dos. Estas fotos están congeladas — se guarda una por semana y no
+              cambian nunca.
+            </div>
+            {fotos === null ? (
+              <div style={{ fontSize: 12, color: '#5E5445' }}>Cargando...</div>
+            ) : fotos.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#8B7D6B' }}>
+                Todavía no hay ninguna. Pulsa el botón de abajo para hacer la primera.
+              </div>
+            ) : fotos.map(f => (
+              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
+                <span style={{ fontSize: 12, color: '#E8D5B5', flex: 1 }}>
+                  Semana del {f.id.split('-').reverse().join('/')}
+                </span>
+                <span style={{ fontSize: 11, color: '#8B7D6B' }}>{f.total} reg.</span>
+                <button className="btn-secondary" style={{ fontSize: 11, padding: '4px 10px' }}
+                        disabled={ocupado} onClick={() => hacerVolverA(f.id)}>Volver aquí</button>
+              </div>
+            ))}
+            <button className="btn-secondary" style={{ width: '100%', marginTop: 10 }}
+                    disabled={ocupado} onClick={hacerFoto}>Hacer foto de esta semana</button>
           </Caja>
 
           <Caja>

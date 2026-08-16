@@ -206,9 +206,13 @@ async function reconciliar() {
       const nLocal = Array.isArray(local) ? local.length : 0;
       if (nLocal !== (resumen.por[clave] ?? -1)) desfasadas.push([clave, local, nLocal]);
     }
-    if (!desfasadas.length) { console.log('[nube] al dia'); return; }
-    console.log('[nube] reconciliando', desfasadas.map(d => `${d[0]} (${d[2]})`).join(', '));
+    if (!desfasadas.length) console.log('[nube] al dia');
+    else console.log('[nube] reconciliando', desfasadas.map(d => `${d[0]} (${d[2]})`).join(', '));
     for (const [clave, datos] of desfasadas) await subirClave(clave, datos);
+  } catch (e) { console.warn('[nube]', e); }
+  try {
+    const { ld } = await import('./lib.js');
+    await guardarHistorico(ld);          // foto de la semana, si no la hay ya
   } catch (e) { console.warn('[nube]', e); }
 }
 
@@ -252,6 +256,89 @@ export async function descargarTodo() {
     for (const c of CLAVES) {
       if (!Array.isArray(datos[c])) {
         return { ok: false, error: `La copia de la nube está incompleta o corrupta (${c}). No se ha tocado nada.` };
+      }
+    }
+    return { ok: true, datos };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/* ------------------------------------------------------------------
+   HISTÓRICO SEMANAL · puntos de restauración
+
+   La nube y el móvil son dos copias VIVAS: están sincronizadas, así que un
+   fallo que borre un registro lo borra en las dos en dos segundos. Esto es
+   lo otro: una foto congelada por semana a la que se puede volver.
+
+   Una foto por semana, con las 8 colecciones dentro de un solo documento
+   (~90 KB hoy, el límite son 1 MiB). No se borran: a 90 KB por semana, el
+   plan gratuito de 1 GiB da para siglos.
+   ------------------------------------------------------------------ */
+
+/** Identificador de la semana: la fecha del lunes, en local. */
+export function claveSemana(fecha = new Date()) {
+  const d = new Date(fecha);
+  const dow = (d.getDay() + 6) % 7;              // lunes = 0
+  d.setDate(d.getDate() - dow);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/** Guarda la foto de esta semana si no existe ya. No pisa la que haya. */
+export async function guardarHistorico(leer) {
+  if (!usuario) return { ok: false, error: 'No has iniciado sesión.' };
+  try {
+    const { db, fs } = await cargar();
+    const id = claveSemana();
+    const ref = fs.doc(db, 'usuarios', usuario.uid, 'historial', id);
+    const ya = await fs.getDoc(ref);
+    if (ya.exists()) return { ok: true, id, nuevo: false };
+
+    const datos = {};
+    let total = 0;
+    for (const clave of CLAVES) {
+      const v = await leer(clave, []);
+      datos[clave] = v;
+      total += Array.isArray(v) ? v.length : 0;
+    }
+    const json = JSON.stringify(datos);
+    if (json.length > 900000) {
+      return { ok: false, error: 'Los datos ya no caben en una sola foto (>900 KB). Hay que partir el histórico por colección.' };
+    }
+    await fs.setDoc(ref, { json, total, ts: new Date().toISOString(), servidor: fs.serverTimestamp() });
+    console.log('[nube] foto semanal guardada:', id, total, 'registros');
+    return { ok: true, id, nuevo: true, total };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/** Lista de fotos disponibles, de la más reciente a la más antigua. */
+export async function listarHistorico() {
+  if (!usuario) return { ok: false, error: 'No has iniciado sesión.' };
+  try {
+    const { db, fs } = await cargar();
+    const snap = await fs.getDocs(fs.collection(db, 'usuarios', usuario.uid, 'historial'));
+    const fotos = [];
+    snap.forEach(d => fotos.push({ id: d.id, total: d.data().total || 0, ts: d.data().ts }));
+    fotos.sort((a, b) => (a.id < b.id ? 1 : -1));
+    return { ok: true, fotos };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/** Descarga una foto concreta. No escribe nada: lo valida y lo devuelve. */
+export async function descargarHistorico(id) {
+  if (!usuario) return { ok: false, error: 'No has iniciado sesión.' };
+  try {
+    const { db, fs } = await cargar();
+    const d = await fs.getDoc(fs.doc(db, 'usuarios', usuario.uid, 'historial', id));
+    if (!d.exists()) return { ok: false, error: 'Esa foto ya no existe.' };
+    const datos = JSON.parse(d.data().json);
+    for (const c of CLAVES) {
+      if (!Array.isArray(datos[c])) {
+        return { ok: false, error: `La foto está incompleta (${c}). No se ha tocado nada.` };
       }
     }
     return { ok: true, datos };

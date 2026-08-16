@@ -106,18 +106,36 @@ export function migrarAgarres(datos) {
 /* ------------------------------------------------------------------
    Agregación: minutos por tipo de agarre
    ------------------------------------------------------------------ */
+/**
+ * Reparto de los minutos de un bloque por tipo de agarre.
+ *
+ * Dos caminos:
+ *   - Si el BLOQUE lleva agarres marcados a mano (rocodromo, boulder), sus
+ *     minutos se reparten entre ellos. Es lo unico fiable ahi: en el roco no
+ *     hay tamano de regleta del que deducir nada.
+ *   - Si no, se mira ejercicio a ejercicio como hasta ahora.
+ */
+export function repartoAgarres(bloque) {
+  const min = Number(bloque?.minutos) || 0;
+  const marcados = Array.isArray(bloque?.agarres) ? bloque.agarres.filter(a => AGARRE_POR_ID[a]) : [];
+  if (marcados.length) {
+    const cuota = min / marcados.length;
+    return marcados.map(a => [a, cuota]);
+  }
+  const ejs = ejerciciosDeBloque(bloque);
+  if (!ejs.length) return [];
+  const cuota = min / ejs.length;
+  return ejs.map(e => [agarreDe(e), cuota]);
+}
+
 export function minutosPorAgarre(ent) {
   const acc = {};
   for (const s of ent || []) {
     let bloques = s.bloques;
     if (typeof bloques === 'string') { try { bloques = JSON.parse(bloques); } catch { continue; } }
     for (const b of bloques || []) {
-      const ejs = ejerciciosDeBloque(b);
-      if (!ejs.length) continue;
-      const cuota = (Number(b.minutos) || 0) / ejs.length;
-      for (const e of ejs) {
-        const k = agarreDe(e);
-        acc[k] = Math.round(((acc[k] || 0) + cuota) * 10) / 10;
+      for (const [k, m] of repartoAgarres(b)) {
+        acc[k] = Math.round(((acc[k] || 0) + m) * 10) / 10;
       }
     }
   }

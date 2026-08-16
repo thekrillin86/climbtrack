@@ -8,8 +8,7 @@
 
 import React, { useMemo } from 'react';
 import { seriesCarga, fatigaAcumulada, PARAMS } from './carga.js';
-import { AGARRE_POR_ID, agarreDe } from './agarres.js';
-import { ejerciciosDeBloque } from './catalogo.js';
+import { AGARRE_POR_ID, repartoAgarres } from './agarres.js';
 import { td } from './lib.js';
 
 const COL = { dedos: '#E8A838', cuerpo: '#3A8FB7', sistemico: '#6B9F4A' };
@@ -51,13 +50,9 @@ export default function CargaP({ cal = [], ent = [] }) {
       let bl = s.bloques;
       if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { continue; } }
       for (const b of bl || []) {
-        const ejs = ejerciciosDeBloque(b);
-        if (!ejs.length) continue;
-        for (const e of ejs) {
-          const k = agarreDe(e);
+        for (const [k, m] of repartoAgarres(b)) {
           if (k === 'sin_marcar') continue;
-          const min = (Number(b.minutos) || 0) / ejs.length;
-          acc[k] = Math.round(((acc[k] || 0) + min) * 10) / 10;
+          acc[k] = Math.round(((acc[k] || 0) + m) * 10) / 10;
         }
       }
     }

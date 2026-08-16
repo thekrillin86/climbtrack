@@ -228,7 +228,7 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
 function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
   const lastMm=useMemo(()=>lastEdge(treg),[treg]);
   const TIPOS=['Rocòdrom','Suspensions/Dominades','Gimnàs'];
-  const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:''});
+  const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:'',agarres:[]});
   const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
@@ -263,7 +263,7 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
       <div className="row-2"><F label="Regleta Izq POST" value={form.tri_post} onChange={v=>setForm({...form,tri_post:v})} type="number"/><F label="Regleta Dch POST" value={form.trd_post} onChange={v=>setForm({...form,trd_post:v})} type="number"/></div>
       {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'#9B3A3A':fl>25?'#D4563A':fl>15?'#E8A838':'#6B9F4A'}}>Pérdida de fuerza: {fl}%</div>}
       <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar estos valores también en la pestaña Tindeq</label>
-      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div>
+      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div><div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>{AGARRES.map(a=>{const on=(b.agarres||[]).includes(a.id);return(<button key={a.id} type="button" onClick={()=>sB(bi,'agarres',on?(b.agarres||[]).filter(x=>x!==a.id):[...(b.agarres||[]),a.id])} style={{padding:'4px 9px',borderRadius:14,fontSize:11,cursor:'pointer',border:'1px solid '+(on?'#E8A838':'#33291F'),background:on?'#E8A838':'transparent',color:on?'#1E1A15':'#8B7D6B'}}>{a.nombre}</button>)})}</div>
         {b.ejercicios.map((ej,ei)=><div key={ei} className="ej-row"><Combo label="" value={ej} onChange={v=>sE(bi,ei,v)} options={allEx}/>{b.ejercicios.length>1&&<button className="ej-rm" onClick={()=>rE(bi,ei)}>✕</button>}</div>)}
         <button className="ej-add" onClick={()=>aE(bi)}>+ Ejercicio</button>
         <div className="row-3" style={{marginTop:8}}><F label="Series" value={b.series} onChange={v=>sB(bi,'series',v)} type="number" min={1}/><F label="Minutos" value={b.minutos} onChange={v=>sB(bi,'minutos',v)} type="number"/><F label="RPE 1-10" value={b.rpe} onChange={v=>sB(bi,'rpe',v)} type="number" min={1} max={10}/></div>
