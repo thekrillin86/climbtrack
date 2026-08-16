@@ -11,7 +11,14 @@ export const GR=['5c','5c+','6a','6a+','6b','6b+','6c','6c+','7a','7a+','7b','7b
 export const TTS={background:'#1E1A15',border:'1px solid #33291F',borderRadius:8,color:'#E8D5B5',fontSize:11};
 
 export async function ld(k,f=[]){try{const r=await window.storage.get(k);return r?JSON.parse(r.value):f}catch{return f}}
-export async function sv(k,d){try{await window.storage.set(k,JSON.stringify(d))}catch(e){console.error(e)}}
+let _alGuardar=null;
+/** Registra un observador de guardados. Lo usa nube.js. Nunca al reves. */
+export function alGuardarEnNube(fn){_alGuardar=fn}
+export async function sv(k,d){
+  try{await window.storage.set(k,JSON.stringify(d))}catch(e){console.error(e)}
+  // La nube va DESPUES y aparte: un fallo de red jamas rompe un guardado local.
+  if(_alGuardar){try{_alGuardar(k,d)}catch(e){console.warn('[nube]',e)}}
+}
 export function pRpe(s){if(!s||s==='')return[];if(Array.isArray(s))return s;return String(s).split('|').map(Number).filter(n=>!isNaN(n)&&n>0)}
 export function rpeStr(a){return(a||[]).join('|')}
 export function rpeAvg(a){const x=pRpe(a);return x.length?Math.round(x.reduce((s,v)=>s+v,0)/x.length*10)/10:null}

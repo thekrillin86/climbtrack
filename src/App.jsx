@@ -3,6 +3,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
 import { ejecutarMigraciones } from './migrations.js';
 import { PantallaFallo, confirmarSobrescritura } from './seguridad.jsx';
+import NubeP from './NubeP.jsx';
+import { iniciarNube } from './nube.js';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
@@ -50,9 +52,14 @@ export default function App(){
   const[dp,setDp]=useState([]);const[tests,setTests]=useState([DT]);
   const[init,setInit]=useState(false);const[menuOpen,setMenuOpen]=useState(false);const[bkp,setBkp]=useState({days:null,overdue:false});const[fallo,setFallo]=useState(null);
 
-  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){setFallo('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus())}}catch(e){console.error(e);setFallo('Error al cargar los datos.\n\n'+(e?.message||e))}setLoading(false)})()},[]);
+  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){setFallo('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus());iniciarNube().catch(e=>console.warn('[nube]',e))}}catch(e){console.error(e);setFallo('Error al cargar los datos.\n\n'+(e?.message||e))}setLoading(false)})()},[]);
   const s=useCallback(async(k,d,fn)=>{fn(d);await sv(k,d)},[]);
   const initData=useCallback(async sd=>{if(!await confirmarSobrescritura(sd))return false;for(const[k,v]of[['ct5_cal',sd.cal],['ct5_ent',sd.ent],['ct5_roca',sd.roca],['ct5_lib',sd.lib],['ct5_t25',sd.t25],['ct5_treg',sd.treg],['ct5_dp',sd.dp],['ct5_tests',sd.tests||[DT]],['ct5_init',true]])await sv(k,v);setCal(sd.cal);setEnt(sd.ent);setRoca(sd.roca);setLib(sd.lib);setT25(sd.t25);setTreg(sd.treg);setDp(sd.dp);setTests(sd.tests||[DT]);setInit(true);return true},[]);
+  const restaurarDeNube=useCallback(async porClave=>{
+    const sd={cal:porClave.ct5_cal,ent:porClave.ct5_ent,roca:porClave.ct5_roca,lib:porClave.ct5_lib,
+              t25:porClave.ct5_t25,treg:porClave.ct5_treg,dp:porClave.ct5_dp,tests:porClave.ct5_tests};
+    return await initData(sd);
+  },[initData]);
   const sects=useMemo(()=>[...new Set([...lib.map(r=>r.sector),...roca.map(r=>r.lloc)].filter(Boolean))].sort(),[lib,roca]);
   const vias=useMemo(()=>[...new Set([...lib.map(r=>r.via),...roca.map(r=>r.via)].filter(Boolean))].sort(),[lib,roca]);
   const llocs=useMemo(()=>[...new Set([...cal.map(r=>r.lloc),...roca.map(r=>r.lloc)].filter(Boolean))].sort(),[cal,roca]);
@@ -80,7 +87,7 @@ export default function App(){
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
   const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
-  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
+  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'nube',icon:'\u2601',label:'Nube'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
 
   if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'#8B7D6B'}}>ClimbTrack v6</div></div></div>);
   if(fallo)return<PantallaFallo msg={fallo}/>;
@@ -101,6 +108,7 @@ export default function App(){
       {page==='test'&&<TestP tests={tests} save={d=>s('ct5_tests',d,setTests)}/>}
       {page==='carga'&&<CargaP cal={cal} ent={ent}/>}
       {page==='ciclos'&&<CiclosP cal={cal} ent={ent}/>}
+      {page==='nube'&&<NubeP onRestaurar={restaurarDeNube}/>}
       {page==='stats'&&<StP cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg}/>}
     </main>
     {menuOpen&&<div className="m-overlay" onClick={()=>setMenuOpen(false)}><div className="more-menu" onClick={e=>e.stopPropagation()}><div className="more-handle"/>{moreP.map(p=><button key={p.id} className="more-item" onClick={()=>{if(p.id==='export'){doExport();setMenuOpen(false)}else{setPage(p.id);setMenuOpen(false)}}}><span style={{fontSize:24}}>{p.icon}</span><span>{p.label}</span></button>)}</div></div>}
