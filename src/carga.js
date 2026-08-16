@@ -42,6 +42,19 @@ export const PARAMS = {
   // documentados van al 75 %. Cámbialo si tu protocolo habitual es otro.
   pctSuspPorDefecto: 75,
 
+  // Escala de la fatiga percibida del calendario.
+  // El formulario admite 0-10, pero en 581 dias registrados el maximo real
+  // que usa Juan es 4. Por eso el divisor es 5 y no 10: con 10, su dia mas
+  // duro puntuaria 0,16 en vez de 0,64. Si algun dia empieza a usar la
+  // escala entera hasta 10, sube esto a 10 y se recalcula todo solo.
+  escalaFatiga: 5,
+  fatigaPorDefecto: 1,
+
+  // Actividades que un entrenamiento con detalle YA representa. Solo estas
+  // se descartan del calendario cuando ese dia hay detalle; asi un cardio
+  // por la tarde no desaparece porque por la manana hubo gimnasio.
+  actividadesConDetalle: /roc[oò]drom|suspensions|dominades|gimn[aà]s/i,
+
   // Constantes de decaimiento por canal, en días.
   tau: { dedos: 2.5, cuerpo: 1.5, sistemico: 1.0 },
 
@@ -151,6 +164,14 @@ export function cargaPorDetalle(sesionEnt) {
 /* ------------------------------------------------------------------
    Respaldo para los días que solo tienen actividad y fatiga
    ------------------------------------------------------------------ */
+/** Fatiga del dia. Vacio o ilegible -> valor por defecto. Un 0 anotado es un 0. */
+function fatigaDe(dia) {
+  const b = dia?.fatiga_fin;
+  if (b === '' || b === null || b === undefined) return PARAMS.fatigaPorDefecto;
+  const n = Number(b);
+  return Number.isFinite(n) ? n : PARAMS.fatigaPorDefecto;
+}
+
 export function cargaPorActividad(dia) {
   const a = (dia?.activitat || '').trim().toLowerCase();
   let coef = null;
@@ -158,8 +179,8 @@ export function cargaPorActividad(dia) {
     if (a.includes(k)) { coef = PARAMS.porActividad[k]; break; }
   }
   if (!coef) return null;
-  const ff = Number(dia?.fatiga_fin) || 1;
-  const i = Math.min(ff / 5, 1);                   // fatiga 1-5 → 0,2 a 1
+  const ff = fatigaDe(dia);                        // respeta un 0 legitimo
+  const i = Math.min(ff / PARAMS.escalaFatiga, 1);
   const coste = costeEsfuerzo(i);                  // fatiga NO es %MVC: sin umbral
   const min = Number(dia?.suunto?.min) || 60;      // usa el reloj si lo hay
   return redondear({
@@ -203,7 +224,7 @@ export function seriesCarga(cal, ent) {
     if (c) { add(s.fecha, c); conDetalle.add(s.fecha); }
   }
   for (const d of cal || []) {
-    if (conDetalle.has(d.fecha)) continue;      // no contar el día dos veces
+    if (conDetalle.has(d.fecha) && PARAMS.actividadesConDetalle.test(d.activitat || '')) continue;
     add(d.fecha, cargaPorActividad(d));
   }
   for (const f of Object.keys(porDia)) redondear(porDia[f]);

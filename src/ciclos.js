@@ -127,7 +127,7 @@ export function revisarCiclos(ciclos) {
     if (c.dias < 14) avisos.push(`${c.clave} dura solo ${c.dias} dias — revisa si es un mesociclo real`);
     if (c.dias > 90) avisos.push(`${c.clave} dura ${c.dias} dias — puede haber una fecha mal escrita`);
   }
-  const orden = [...ciclos].sort((a, b) => (a.ini > b.ini ? 1 : -1));
+  const orden = [...ciclos].sort((a, b) => (a.ini < b.ini ? -1 : a.ini > b.ini ? 1 : 0));
   for (let i = 1; i < orden.length; i++) {
     if (orden[i].ini <= orden[i - 1].fin) {
       avisos.push(`${orden[i - 1].clave} y ${orden[i].clave} se solapan en el tiempo`);

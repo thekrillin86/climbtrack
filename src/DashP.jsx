@@ -49,7 +49,7 @@ function frescura(fatiga, ref) {
 function compararTest(treg, t25) {
   const todos = [...(treg || []), ...(t25 || [])]
     .filter(r => r.fecha && Number(r.esq) > 0)
-    .sort((a, b) => (a.fecha > b.fecha ? 1 : -1));
+    .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
   if (!todos.length) return null;
 
   const ultimo = todos[todos.length - 1];

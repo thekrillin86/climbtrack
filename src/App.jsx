@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine } from "recharts";
 import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
 import { ejecutarMigraciones } from './migrations.js';
+import { PantallaFallo, confirmarSobrescritura } from './seguridad.jsx';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
@@ -47,11 +48,11 @@ export default function App(){
   const[cal,setCal]=useState([]);const[ent,setEnt]=useState([]);const[roca,setRoca]=useState([]);
   const[lib,setLib]=useState([]);const[t25,setT25]=useState([]);const[treg,setTreg]=useState([]);
   const[dp,setDp]=useState([]);const[tests,setTests]=useState([DT]);
-  const[init,setInit]=useState(false);const[menuOpen,setMenuOpen]=useState(false);const[bkp,setBkp]=useState({days:null,overdue:false});
+  const[init,setInit]=useState(false);const[menuOpen,setMenuOpen]=useState(false);const[bkp,setBkp]=useState({days:null,overdue:false});const[fallo,setFallo]=useState(null);
 
-  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){alert('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus())}}catch(e){console.error(e)}setLoading(false)})()},[]);
+  useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){setFallo('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus())}}catch(e){console.error(e);setFallo('Error al cargar los datos.\n\n'+(e?.message||e))}setLoading(false)})()},[]);
   const s=useCallback(async(k,d,fn)=>{fn(d);await sv(k,d)},[]);
-  const initData=useCallback(async sd=>{for(const[k,v]of[['ct5_cal',sd.cal],['ct5_ent',sd.ent],['ct5_roca',sd.roca],['ct5_lib',sd.lib],['ct5_t25',sd.t25],['ct5_treg',sd.treg],['ct5_dp',sd.dp],['ct5_tests',sd.tests||[DT]],['ct5_init',true]])await sv(k,v);setCal(sd.cal);setEnt(sd.ent);setRoca(sd.roca);setLib(sd.lib);setT25(sd.t25);setTreg(sd.treg);setDp(sd.dp);setTests(sd.tests||[DT]);setInit(true)},[]);
+  const initData=useCallback(async sd=>{if(!await confirmarSobrescritura(sd))return false;for(const[k,v]of[['ct5_cal',sd.cal],['ct5_ent',sd.ent],['ct5_roca',sd.roca],['ct5_lib',sd.lib],['ct5_t25',sd.t25],['ct5_treg',sd.treg],['ct5_dp',sd.dp],['ct5_tests',sd.tests||[DT]],['ct5_init',true]])await sv(k,v);setCal(sd.cal);setEnt(sd.ent);setRoca(sd.roca);setLib(sd.lib);setT25(sd.t25);setTreg(sd.treg);setDp(sd.dp);setTests(sd.tests||[DT]);setInit(true);return true},[]);
   const sects=useMemo(()=>[...new Set([...lib.map(r=>r.sector),...roca.map(r=>r.lloc)].filter(Boolean))].sort(),[lib,roca]);
   const vias=useMemo(()=>[...new Set([...lib.map(r=>r.via),...roca.map(r=>r.via)].filter(Boolean))].sort(),[lib,roca]);
   const llocs=useMemo(()=>[...new Set([...cal.map(r=>r.lloc),...roca.map(r=>r.lloc)].filter(Boolean))].sort(),[cal,roca]);
@@ -74,14 +75,15 @@ export default function App(){
       d.forEach(r=>{csv+=ks.map(k=>{let v=r[k];if(v==null)return'';if(k==='intentos_rpe'&&Array.isArray(v))v=rpeStr(v);
         if(['bloques','curva','intensidades','series_data','contractions'].includes(k)&&Array.isArray(v))v=JSON.stringify(v);
         const x=String(v);return x.includes(',')||x.includes('"')||x.includes('\n')?`"${x.replace(/"/g,'""')}"`:x}).join(',')+'\n'})}
-    const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`climbtrack_v6_${td()}.csv`;a.click();URL.revokeObjectURL(u);
-    await markBackup();setBkp(await backupStatus());
+    const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`climbtrack_v6_${td()}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),30000);
+    if(window.confirm('¿Se ha descargado el fichero correctamente?\n\nPulsa Aceptar solo si lo ves en Descargas. Si no, Cancelar y el aviso de copia seguirá activo.')){await markBackup();setBkp(await backupStatus())}
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
   const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
   const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
 
   if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'#8B7D6B'}}>ClimbTrack v6</div></div></div>);
+  if(fallo)return<PantallaFallo msg={fallo}/>;
   if(!init)return<InitP onInit={initData}/>;
 
   return(<div className="app"><style>{CSS}</style>
@@ -109,7 +111,7 @@ export default function App(){
 /* ───────── INIT ───────── */
 function InitP({onInit}){const[st,setSt]=useState('ready');const ref=useRef(null);
   const imp=async e=>{const f=e.target.files[0];if(!f)return;setSt('loading');
-    try{const raw=await f.text();const t='\n'+raw.trimStart();const sec=t.split(/\n(=== \w+ ===)\n/);
+    try{const raw=(await f.text()).replace(/\r\n/g,'\n').replace(/\r/g,'\n');const t='\n'+raw.trimStart();const sec=t.split(/\n(=== \w+ ===)\n/);
       const sd={cal:[],roca:[],ent:[],lib:[],t25:[],treg:[],dp:[],tests:[DT]};
       const km={'=== Calendario ===':'cal','=== Entrenamientos ===':'ent','=== SortidesRoca ===':'roca','=== Libreta ===':'lib','=== Tindeq25mm ===':'t25','=== TindeqRegleta ===':'treg','=== DatosPersonales ===':'dp','=== Tests ===':'tests'};
       for(let i=0;i<sec.length;i++){const k=km[sec[i]?.trim()];if(!k)continue;const csv=sec[i+1]?.trim();if(!csv)continue;
@@ -117,13 +119,13 @@ function InitP({onInit}){const[st,setSt]=useState('ready');const ref=useRef(null
         for(let j=1;j<ls.length;j++){const v=parseRow(ls[j]);const o={};h.forEach((x,idx)=>{o[x.trim()]=v[idx]||''});
           ['bloques','curva','intensidades','series_data','contractions'].forEach(f=>{if(o[f]&&typeof o[f]==='string'&&(o[f].startsWith('[')||o[f].startsWith('"['))){try{o[f]=JSON.parse(o[f].replace(/^"+|"+$/g,''))}catch{}}});
           if(o.intentos_rpe)o.intentos_rpe=pRpe(o.intentos_rpe);sd[k].push(o)}}
-      await onInit(sd);setSt('done')}catch(err){console.error(err);setSt('error')}};
+      const total=Object.values(sd).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0);if(total<=1)throw new Error('El fichero no contiene datos reconocibles. Comprueba que es el CSV exportado por ClimbTrack y no otro.');const ok=await onInit(sd);setSt(ok?'done':'ready')}catch(err){console.error(err);setSt('error:'+(err?.message||err))}};
   return(<div className="app"><style>{CSS}</style><div className="init-page"><div style={{textAlign:'center',maxWidth:400,width:'100%'}}>
     <div style={{fontSize:64,marginBottom:20}}>🧗</div><h1 style={{fontSize:32,fontWeight:700,marginBottom:8}}>ClimbTrack <span style={{fontSize:16,color:'#E8A838'}}>v6</span></h1>
     <p style={{color:'#6B5F52',lineHeight:1.6,marginBottom:32}}>Escalada · Carga · Recuperación</p>
-    {st==='loading'?<div style={{color:'#E8A838',padding:20}}>Importando...</div>:st==='error'?<div style={{color:'#D4563A',padding:20}}>Error al importar.</div>:
+    {st==='loading'?<div style={{color:'#E8A838',padding:20}}>Importando...</div>:String(st).startsWith('error')?<div style={{color:'#D4563A',padding:20,fontSize:13,lineHeight:1.5}}>{String(st).slice(6)||'Error al importar.'}<div style={{marginTop:12}}><button className="btn-secondary" onClick={()=>setSt('ready')}>Volver</button></div></div>:
     <div style={{display:'flex',flexDirection:'column',gap:12}}>
-      <button className="btn-primary btn-lg" onClick={()=>{setSt('loading');onInit({cal:[],roca:[],ent:[],lib:[],t25:[],treg:[],dp:[],tests:[DT]})}}>Empezar de cero</button>
+      <button className="btn-primary btn-lg" onClick={async()=>{setSt('loading');const ok=await onInit({cal:[],roca:[],ent:[],lib:[],t25:[],treg:[],dp:[],tests:[DT]});if(!ok)setSt('ready')}}>Empezar de cero</button>
       <div style={{color:'#6B5F52',fontSize:13}}>— o —</div>
       <button className="btn-secondary btn-lg" onClick={()=>ref.current?.click()}>📂 Importar CSV</button>
       <input ref={ref} type="file" accept=".csv,.txt,text/*,*/*" style={{display:'none'}} onChange={imp}/>

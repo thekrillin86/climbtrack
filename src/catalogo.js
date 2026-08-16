@@ -22,9 +22,9 @@
    params   = qué campos tiene sentido pedir para ese tipo
    ------------------------------------------------------------------ */
 export const TIPOS = [
-  { id:'SUSP_REGLETA', nombre:'Suspensión en regleta',   dedos:1.00, cuerpo:0.20, sist:0.10, agarre:'canto',
+  { id:'SUSP_REGLETA', nombre:'Suspensión en regleta',   dedos:1.00, cuerpo:0.20, sist:0.10, agarre:'mixto',
     params:['regleta_mm','pct_mvc','lastre_kg','trabajo_s','descanso_s','series','reps'] },
-  { id:'SUSP_TEST',    nombre:'Test con Tindeq',          dedos:0.95, cuerpo:0.15, sist:0.05, agarre:'canto',
+  { id:'SUSP_TEST',    nombre:'Test con Tindeq',          dedos:0.95, cuerpo:0.15, sist:0.05, agarre:'mixto',
     params:['protocolo','regleta_mm','montaje_id'] },
   { id:'DOMINADA',     nombre:'Dominada',                 dedos:0.25, cuerpo:0.90, sist:0.30, agarre:'—',
     params:['lastre_kg','reps','series','variante'] },

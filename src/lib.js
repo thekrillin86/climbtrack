@@ -1,7 +1,7 @@
 // ───────────────────────── ClimbTrack core library
 export const DT={id:'t0',fecha:"2026-01",nombre:"JOAN LOPEZ",peso:83,gradoRP:"7B",gradoIRCRA_RP:19,gradoObj:"7C+",gradoIRCRA_Obj:22,MHT14:31,MED40:16,MAW5:20,OT:65,CF:48,curva:[{i:1,t:5},{i:.85,t:32},{i:.75,t:43},{i:.65,t:53},{i:.55,t:80},{i:.45,t:90},{i:.35,t:110}],cargaRegleta:16,fmaxRegleta:103,intensidades:[]};
 export const xi=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-export const td=()=>new Date().toISOString().split('T')[0];
+export const td=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split('T')[0]};
 export const CL=['#E8A838','#D4563A','#3A8FB7','#6B9F4A','#9B6BB7','#C4724E','#4A9F9F','#B75F8E'];
 export const GO=['5a','5a+','5b','5b+','5c','5c+','6a','6a+','6b','6b+','6c','6c+','7a','7a+','7b','7b+','7c','7c+','8a','8a+','8b'];
 export const MS={Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12};
