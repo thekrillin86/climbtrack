@@ -130,12 +130,47 @@ function programarSubida(clave, datos) {
   temporizadores[clave] = setTimeout(() => subirClave(clave, datos), 2000);
 }
 
-async function subirClave(clave, datos) {
+/**
+ * Última puerta antes de escribir en Firestore. Todo guardado local acaba aquí
+ * a través de programarSubida(), así que el guardia tiene que estar aquí.
+ *
+ * El escenario concreto que cierra: abres la app en localhost con la sesión ya
+ * iniciada. Ese origen tiene su propio IndexedDB, vacío, así que sale la
+ * pantalla inicial con "Empezar de cero". Pulsarlo llama a initData(), que
+ * escribe [] en las 8 claves — y confirmarSobrescritura() no pregunta nada,
+ * porque previos === 0 y en local no hay nada que sobrescribir. Pero cada sv()
+ * dispara el gancho, y sin guardia esos 8 arrays vacíos se subirían encima de
+ * todos los registros que sí están en la nube.
+ *
+ * El umbral: un borrado normal es n → n-1, un desastre es n → 0. Exigir que lo
+ * nuevo sea al menos la mitad deja pasar cualquier edición real y bloquea los
+ * vaciados. El >= 10 evita dar la lata con ct5_dp y ct5_tests, que tienen pocos
+ * registros y donde quitar uno es lo normal.
+ *
+ * La escapatoria es deliberada y es subirTodo(), el botón "Subir todo ahora":
+ * va por writeBatch y no pasa por aquí. Si el borrado es intencionado, esa es
+ * la puerta, y la abre Juan a mano.
+ */
+async function subirClave(clave, datos, { forzar = false } = {}) {
   delete temporizadores[clave];
   if (!usuario) return;
   try {
     const { db, fs } = await cargar();
     const ref = fs.doc(db, 'usuarios', usuario.uid, 'datos', clave);
+
+    if (!forzar) {
+      const actual = await fs.getDoc(ref);
+      const nNube = actual.exists() ? (actual.data().n || 0) : 0;
+      const nNuevo = Array.isArray(datos) ? datos.length : 0;
+      if (nNube >= 10 && nNuevo < nNube / 2) {
+        estado.ultimoError = `Subida de ${clave} bloqueada: pasaría de ${nNube} a ${nNuevo} registros. Si el borrado es intencionado, usa "Subir todo ahora".`;
+        console.warn('[nube]', estado.ultimoError);
+        estado.pendientes = Object.keys(temporizadores).length;
+        emitir();
+        return;
+      }
+    }
+
     await fs.setDoc(ref, {
       json: JSON.stringify(datos),
       n: Array.isArray(datos) ? datos.length : 0,
