@@ -157,11 +157,30 @@ export default function NubeP({ onRestaurar }) {
           <div style={{ color: '#D4563A', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
             Este dispositivo tiene MENOS datos que la nube
           </div>
-          <div style={{ fontSize: 12, color: '#E8D5B5', lineHeight: 1.5, marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: '#E8D5B5', lineHeight: 1.5, marginBottom: 10 }}>
             No se ha subido nada, a propósito: subir desde aquí borraría en la nube
-            justo lo que falta. Es lo normal en un móvil nuevo o abriendo la app en
-            localhost. Si esto es un dispositivo nuevo, pulsa <b>Restaurar desde la nube</b>.
+            justo lo que falta. Hay dos motivos posibles y la acción no es la misma.
           </div>
+
+          <div style={{ fontSize: 12, color: '#E8D5B5', lineHeight: 1.5, marginBottom: 8 }}>
+            <b>1. Este dispositivo es nuevo o está a medias.</b> Un móvil recién
+            instalado, o la app abierta en localhost, que tiene su propio IndexedDB
+            vacío. No has borrado nada: es que estos datos nunca han estado aquí.
+            Pulsa <b>Restaurar desde la nube</b>.
+          </div>
+
+          <div style={{ fontSize: 12, color: '#E8D5B5', lineHeight: 1.5, marginBottom: 10 }}>
+            <b>2. Has borrado esos registros a propósito</b> en este móvil y quieres
+            que la nube refleje el borrado. Entonces pulsa <b>Subir todo ahora</b>:
+            es la única forma de que la nube se quede con menos de lo que tenía, y
+            por eso no ocurre sola.
+          </div>
+
+          <div style={{ fontSize: 12, color: '#C4724E', lineHeight: 1.5, marginBottom: 10 }}>
+            Mientras siga así no se guarda la foto semanal, para no dejar congelado
+            un estado incompleto: la foto de una semana solo se escribe una vez.
+          </div>
+
           {est.avisoRestaurar.map(x => (
             <div key={x} style={{ fontSize: 11, color: '#C4724E' }}>{x}</div>
           ))}

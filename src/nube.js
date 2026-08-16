@@ -244,8 +244,7 @@ async function reconciliar() {
       localPorClave[clave] = Array.isArray(v) ? v.length : 0;
     }
 
-    const { subir, enPeligro, totalLocal, totalNube } =
-      decidirSincronizacion(localPorClave, resumen.por);
+    const { subir, enPeligro } = decidirSincronizacion(localPorClave, resumen.por);
 
     estado.avisoRestaurar = enPeligro.length ? enPeligro : null;
     emitir();
@@ -256,14 +255,10 @@ async function reconciliar() {
       for (const clave of subir) await subirClave(clave, datosPorClave[clave]);
     } else if (!enPeligro.length) console.log('[nube] al dia');
 
-    // La foto solo se hace si este dispositivo tiene los datos completos.
-    // Congelar un estado degradado seria guardar el problema, no la solucion.
-    if (totalLocal > 0 && totalLocal >= totalNube) {
-      const r = await guardarHistorico(ld);
-      if (!r.ok) console.warn('[nube] foto semanal:', r.error);
-    } else {
-      console.warn('[nube] foto semanal omitida: aqui', totalLocal, 'nube', totalNube);
-    }
+    // El guardia contra fotos incompletas vive dentro de guardarHistorico(),
+    // que es por donde pasan todas las llamadas. Aquí no se filtra nada.
+    const r = await guardarHistorico(ld);
+    if (!r.ok) console.warn('[nube] foto semanal:', r.error);
   } catch (e) { console.warn('[nube]', e); }
 }
 
@@ -335,8 +330,24 @@ export function claveSemana(fecha = new Date()) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-/** Guarda la foto de esta semana si no existe ya. No pisa la que haya. */
-export async function guardarHistorico(leer) {
+/**
+ * Guarda la foto de esta semana si no existe ya. No pisa la que haya.
+ *
+ * El guardia contra fotos incompletas vive AQUÍ DENTRO, no en quien llama.
+ * Motivo: a esta función se entra por dos puertas — la reconciliación al
+ * arrancar y el botón "Hacer foto de esta semana" de la pestaña Nube. Con el
+ * guardia en reconciliar(), el botón se lo saltaba: en localhost escribía una
+ * foto vacía. Y como la foto solo se escribe si no existe todavía, esa foto
+ * vacía se quedaba como la de esa semana y la buena ya no se hacía nunca.
+ * Un guardia en el llamante protege una puerta; aquí dentro protege todas.
+ *
+ * La comprobación es POR COLECCIÓN, nunca por suma: con el calendario crecido
+ * y la libreta a cero, el total sale a favor y colaría un estado incompleto.
+ *
+ * `forzar: true` se lo salta a propósito, para guardar una foto a mano
+ * sabiendo lo que se hace.
+ */
+export async function guardarHistorico(leer, { forzar = false } = {}) {
   if (!usuario) return { ok: false, error: 'No has iniciado sesión.' };
   try {
     const { db, fs } = await cargar();
@@ -346,12 +357,34 @@ export async function guardarHistorico(leer) {
     if (ya.exists()) return { ok: true, id, nuevo: false };
 
     const datos = {};
+    const porClave = {};
     let total = 0;
     for (const clave of CLAVES) {
       const v = await leer(clave, []);
       datos[clave] = v;
-      total += Array.isArray(v) ? v.length : 0;
+      porClave[clave] = Array.isArray(v) ? v.length : 0;
+      total += porClave[clave];
     }
+
+    // ---- guardia: leído todo, aún sin escribir nada ----
+    if (!forzar) {
+      if (total === 0) {
+        return { ok: false, error: 'Este dispositivo no tiene datos. No se hace la foto.' };
+      }
+      const resumen = await leerResumenNube();
+      if (!resumen.ok) {
+        return { ok: false, error: `No se ha podido comprobar la nube (${resumen.error}). No se hace la foto: si este dispositivo estuviera incompleto, la semana quedaría congelada así.` };
+      }
+      const { enPeligro } = decidirSincronizacion(porClave, resumen.por);
+      if (enPeligro.length) {
+        return {
+          ok: false,
+          incompleto: enPeligro,
+          error: `Aquí faltan registros que sí están en la nube (${enPeligro.join(' · ')}). No se hace la foto: congelaría un estado incompleto.`,
+        };
+      }
+    }
+
     const json = JSON.stringify(datos);
     if (json.length > 900000) {
       return { ok: false, error: 'Los datos ya no caben en una sola foto (>900 KB). Hay que partir el histórico por colección.' };
