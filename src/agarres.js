@@ -143,6 +143,40 @@ export function minutosPorAgarre(ent) {
 }
 
 /**
+ * Vías por agarre en las salidas de roca.
+ *
+ * Cuenta VÍAS, no minutos, y por eso vive aparte de minutosPorAgarre(). Una
+ * vía no tiene minutos: repartirle un tiempo estimado sería inventarse el
+ * dato, así que las dos cifras no se mezclan ni se suman en ningún sitio.
+ *
+ * Una vía con tres agarres marcados cuenta como una vía en cada uno de los
+ * tres. No se reparte en tercios: la vía se ha escalado entera con los tres,
+ * no un tercio de vía con cada uno.
+ *
+ * `agarres` puede llegar como string: los CSV exportados antes de que
+ * 'agarres' entrara en la lista de campos JSON lo guardaban separado por
+ * comas. Se acepta igual para no perder esas salidas.
+ */
+export function viasPorAgarre(roca, desdeFecha) {
+  const acc = {};
+  for (const r of roca || []) {
+    if (desdeFecha && (!r.fecha || r.fecha < desdeFecha)) continue;
+    let ag = r.agarres;
+    if (typeof ag === 'string') {
+      const s = ag.trim();
+      if (s.startsWith('[')) { try { ag = JSON.parse(s); } catch { continue; } }
+      else ag = s.split(',').map(x => x.trim()).filter(Boolean);
+    }
+    if (!Array.isArray(ag) || !ag.length) continue;
+    for (const a of ag) {
+      if (!AGARRE_POR_ID[a]) continue;
+      acc[a] = (acc[a] || 0) + 1;
+    }
+  }
+  return acc;
+}
+
+/**
  * Agarre de un ejercicio. Si ya viene puesto se respeta; si no, se deduce
  * del tamaño de regleta. Así una suspensión apuntada hoy queda clasificada
  * sin que haya que migrar nada.

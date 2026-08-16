@@ -7,6 +7,7 @@ export default defineConfig({
     manifest: {
       name: 'ClimbTrack',
       short_name: 'ClimbTrack',
+      lang: 'es',
       theme_color: '#141210',
       background_color: '#141210',
       display: 'standalone',

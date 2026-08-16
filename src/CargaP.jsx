@@ -8,7 +8,7 @@
 
 import React, { useMemo } from 'react';
 import { seriesCarga, fatigaAcumulada, PARAMS } from './carga.js';
-import { AGARRE_POR_ID, repartoAgarres } from './agarres.js';
+import { AGARRE_POR_ID, repartoAgarres, viasPorAgarre } from './agarres.js';
 import { td } from './lib.js';
 
 const COL = { dedos: '#E8A838', cuerpo: '#3A8FB7', sistemico: '#6B9F4A' };
@@ -25,7 +25,7 @@ function diasAtras(n) {
   return out;
 }
 
-export default function CargaP({ cal = [], ent = [] }) {
+export default function CargaP({ cal = [], ent = [], roca = [] }) {
   const ser = useMemo(() => seriesCarga(cal, ent), [cal, ent]);
   const hoy = td();
   const fat = useMemo(() => fatigaAcumulada(ser, hoy), [ser, hoy]);
@@ -58,6 +58,10 @@ export default function CargaP({ cal = [], ent = [] }) {
     }
     return acc;
   }, [ent]);
+
+  // vías de roca por agarre, últimos 30 días. Aparte de los minutos a
+  // propósito: una vía no tiene minutos y estimarlos sería inventárselos.
+  const vias = useMemo(() => viasPorAgarre(roca, diasAtras(30)[0]), [roca]);
 
   const origenes = useMemo(() => {
     const acc = {};
@@ -150,6 +154,41 @@ export default function CargaP({ cal = [], ent = [] }) {
               </div>
             );
           })
+        )}
+      </div>
+
+      {/* ---- vías de roca por agarre ---- */}
+      <div className="card" style={{ padding: 16 }}>
+        <div className="sh a" style={{ marginBottom: 10 }}>Vías por agarre · 30 días</div>
+        {Object.keys(vias).length === 0 ? (
+          <div style={{ fontSize: 12, color: '#8B7D6B', lineHeight: 1.5 }}>
+            Todavía no hay ninguna vía de roca con agarres marcados en los últimos
+            30 días. Se marcan con los chips al registrar la vía en Roca.
+          </div>
+        ) : (
+          <>
+            {Object.entries(vias).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
+              const mx = Math.max(...Object.values(vias));
+              return (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: '#E8D5B5', width: 118 }}>
+                    {AGARRE_POR_ID[k]?.nombre || k}
+                  </span>
+                  <div style={{ flex: 1, height: 14, background: 'rgba(255,255,255,0.04)', borderRadius: 3 }}>
+                    <div style={{ width: `${(v / mx) * 100}%`, height: '100%',
+                                  background: COL.cuerpo, borderRadius: 3 }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: '#8B7D6B', width: 46, textAlign: 'right' }}>
+                    {v} {v === 1 ? 'vía' : 'vías'}
+                  </span>
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 11, color: '#5E5445', marginTop: 10, lineHeight: 1.45 }}>
+              Cuenta vías, no minutos, y no se suma con el panel de arriba. Una vía
+              con varios agarres marcados cuenta entera en cada uno.
+            </div>
+          </>
         )}
       </div>
 
