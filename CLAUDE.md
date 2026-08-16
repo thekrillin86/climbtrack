@@ -207,3 +207,21 @@ src/
       copia de seguridad verificada.**
 - [ ] Revisar solapes de mesociclos 1/3 y 1/4 (dos semanas de solape, puede
       haber más etiquetas mal).
+
+---
+
+## 11. Push: solo cuando Juan lo pida con esas palabras
+
+**Nunca hagas `git push`.** Solo cuando Juan escriba literalmente
+**"haz push"**. Ni al terminar una tarea, ni porque el commit esté limpio, ni
+porque parezca el paso natural.
+
+Motivo: cada push a `master` dispara un despliegue en Netlify y cada
+despliegue le cuesta **15 de sus 300 créditos mensuales**. Un push de más es
+dinero real tirado.
+
+Sí puedes hacer sin preguntar, todas las veces que haga falta: editar, aplicar
+patches, `git add`, `git commit`, `npm run dev`, `npm run build`. Lo que queda
+en local es gratis.
+
+Si crees que ya toca desplegar, dilo y espera. No lo hagas tú.

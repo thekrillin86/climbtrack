@@ -34,6 +34,7 @@ let estado = {
   pendientes: 0,
   ultimaSubida: null,
   ultimoError: null,
+  avisoRestaurar: null,   // este dispositivo tiene MENOS datos que la nube
 };
 
 const emitir = () => avisar({ ...estado });
@@ -182,17 +183,53 @@ export async function subirTodo(leer) {
 }
 
 /**
- * Reconciliación al arrancar. Sube toda colección cuyo número de registros
- * en local no coincida con el de la nube.
+ * LA REGLA MAS PELIGROSA DEL SISTEMA. Pura y exportada para poder probarla.
+ *
+ * Solo se sube cuando aqui hay MAS registros que en la nube. Nunca al reves:
+ * si este dispositivo tiene MENOS, no es que la nube este desfasada, es que
+ * este dispositivo esta vacio o a medias. Pasa al abrir en localhost (otro
+ * origen, otro IndexedDB) y al instalar en un movil nuevo. Subir ahi borraria
+ * en la nube justo lo que se viene a recuperar.
+ */
+export function decidirSincronizacion(local = {}, nube = {}) {
+  const subir = [], enPeligro = [];
+  let totalLocal = 0, totalNube = 0;
+  for (const clave of CLAVES) {
+    const nL = local[clave] ?? 0;
+    const nN = nube[clave];
+    totalLocal += nL;
+    totalNube += nN || 0;
+    if (nN === undefined) { if (nL > 0) subir.push(clave); }
+    else if (nL > nN) subir.push(clave);
+    else if (nL < nN) enPeligro.push(`${clave}: ${nL} aqui / ${nN} en la nube`);
+  }
+  return { subir, enPeligro, totalLocal, totalNube };
+}
+
+let yaComprobado = false;
+
+/**
+ * Reconciliación al arrancar. Compara los conteos locales con los de la nube
+ * y sube SOLO las colecciones en las que este dispositivo tiene MÁS registros.
+ * Nunca al revés.
  *
  * Por qué hace falta: si apunta una sesión en el sector sin cobertura y
  * Firebase ni siquiera llegó a cargar, ese guardado no pasó por el gancho y
  * nadie lo habría subido nunca. Comparando al arrancar, el sistema se cura
  * solo sin necesidad de una cola de pendientes propia.
  *
+ * Por qué no sube cuando aquí hay menos: tener menos registros que la nube no
+ * significa que la nube esté desfasada, significa que este dispositivo está
+ * vacío o a medias. Es lo que pasa al abrir en localhost (otro origen, otro
+ * IndexedDB) y al instalar en un móvil nuevo. Subir desde ahí borraría en la
+ * nube justo lo que se viene a recuperar. En ese caso no se sube nada, se
+ * enciende `estado.avisoRestaurar` y la pestaña Nube pide restaurar.
+ *
+ * La regla vive en `decidirSincronizacion()`, que es pura y está exportada
+ * para poder probarla sin tocar Firebase.
+ *
  * Solo sube: jamás baja nada por su cuenta.
  */
-let yaComprobado = false;
 async function reconciliar() {
   if (yaComprobado) return;
   yaComprobado = true;
@@ -200,19 +237,33 @@ async function reconciliar() {
     const resumen = await leerResumenNube();
     if (!resumen.ok) return;
     const { ld } = await import('./lib.js');
-    const desfasadas = [];
+    const localPorClave = {}, datosPorClave = {};
     for (const clave of CLAVES) {
-      const local = await ld(clave, []);
-      const nLocal = Array.isArray(local) ? local.length : 0;
-      if (nLocal !== (resumen.por[clave] ?? -1)) desfasadas.push([clave, local, nLocal]);
+      const v = await ld(clave, []);
+      datosPorClave[clave] = v;
+      localPorClave[clave] = Array.isArray(v) ? v.length : 0;
     }
-    if (!desfasadas.length) console.log('[nube] al dia');
-    else console.log('[nube] reconciliando', desfasadas.map(d => `${d[0]} (${d[2]})`).join(', '));
-    for (const [clave, datos] of desfasadas) await subirClave(clave, datos);
-  } catch (e) { console.warn('[nube]', e); }
-  try {
-    const { ld } = await import('./lib.js');
-    await guardarHistorico(ld);          // foto de la semana, si no la hay ya
+
+    const { subir, enPeligro, totalLocal, totalNube } =
+      decidirSincronizacion(localPorClave, resumen.por);
+
+    estado.avisoRestaurar = enPeligro.length ? enPeligro : null;
+    emitir();
+
+    if (enPeligro.length) console.warn('[nube] aqui hay MENOS que en la nube. NO se sube:', enPeligro);
+    if (subir.length) {
+      console.log('[nube] subiendo', subir.join(', '));
+      for (const clave of subir) await subirClave(clave, datosPorClave[clave]);
+    } else if (!enPeligro.length) console.log('[nube] al dia');
+
+    // La foto solo se hace si este dispositivo tiene los datos completos.
+    // Congelar un estado degradado seria guardar el problema, no la solucion.
+    if (totalLocal > 0 && totalLocal >= totalNube) {
+      const r = await guardarHistorico(ld);
+      if (!r.ok) console.warn('[nube] foto semanal:', r.error);
+    } else {
+      console.warn('[nube] foto semanal omitida: aqui', totalLocal, 'nube', totalNube);
+    }
   } catch (e) { console.warn('[nube]', e); }
 }
 

@@ -152,6 +152,22 @@ export default function NubeP({ onRestaurar }) {
         </Caja>
       )}
 
+      {est.usuario && est.avisoRestaurar && (
+        <Caja borde="#D4563A">
+          <div style={{ color: '#D4563A', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
+            Este dispositivo tiene MENOS datos que la nube
+          </div>
+          <div style={{ fontSize: 12, color: '#E8D5B5', lineHeight: 1.5, marginBottom: 8 }}>
+            No se ha subido nada, a propósito: subir desde aquí borraría en la nube
+            justo lo que falta. Es lo normal en un móvil nuevo o abriendo la app en
+            localhost. Si esto es un dispositivo nuevo, pulsa <b>Restaurar desde la nube</b>.
+          </div>
+          {est.avisoRestaurar.map(x => (
+            <div key={x} style={{ fontSize: 11, color: '#C4724E' }}>{x}</div>
+          ))}
+        </Caja>
+      )}
+
       {est.usuario && (
         <>
           <Caja>
