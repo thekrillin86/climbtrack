@@ -82,23 +82,26 @@ function compararTest(treg, t25) {
   };
 }
 
-/* --------- ventana tendinosa, ahora sobre el canal de dedos --------- */
-function ventanaTendinosa(series) {
-  const hoy = new Date(td());
+/* --------- ventana tendinosa, ahora sobre el canal de dedos ---------
+   Se cuenta en DÍAS, no en horas: `ct5_ent` no guarda la hora de la sesión,
+   así que las horas eran precisión falsa sobre un dato diario. Y se mide
+   contra la fecha de referencia del panel, que es mañana. */
+function ventanaTendinosa(series, refISO) {
+  const ref = new Date(refISO);
   let acum = 0, sesiones = 0, ultima = null;
   for (const [f, c] of Object.entries(series)) {
-    const d = (hoy - new Date(f)) / 86400000;
+    const d = (ref - new Date(f)) / 86400000;
     if (d < 0 || d > 7) continue;
     if (c.dedos > 0) {
       acum += c.dedos; sesiones++;
       if (!ultima || f > ultima) ultima = f;
     }
   }
-  const horas = ultima ? Math.round((hoy - new Date(ultima)) / 3600000) : null;
-  let nivel = 'green', msg = 'Los dedos han descansado lo suficiente.';
-  if (horas !== null && horas < 48) { nivel = 'red'; msg = 'Menos de 48 h desde la última carga de dedos.'; }
-  else if (horas !== null && horas < 72) { nivel = 'amber'; msg = 'Entre 48 y 72 h. El tejido sigue en ventana.'; }
-  return { nivel, msg, acum: Math.round(acum * 10) / 10, sesiones, horas };
+  const dias = ultima ? Math.round((ref - new Date(ultima)) / 86400000) : null;
+  let nivel = 'green', msg = 'Los dedos habrán descansado lo suficiente.';
+  if (dias !== null && dias < 2) { nivel = 'red'; msg = `Solo ${dias} día${dias === 1 ? '' : 's'} desde la última carga de dedos.`; }
+  else if (dias !== null && dias < 3) { nivel = 'amber'; msg = `${dias} días desde la última carga. El tejido sigue en ventana.`; }
+  return { nivel, msg, acum: Math.round(acum * 10) / 10, sesiones, dias };
 }
 
 /* --------- la recomendación, con su porqué --------- */
@@ -109,7 +112,7 @@ function recomendar(fr, test, vent) {
   if (fr.dedos < 40) { veredicto = 'descanso'; razones.push(`frescura de dedos ${fr.dedos} de 100`); }
   else if (fr.dedos < 65) { veredicto = 'suave'; razones.push(`frescura de dedos ${fr.dedos} de 100`); }
 
-  if (vent.nivel === 'red') { veredicto = veredicto === 'descanso' ? 'descanso' : 'suave'; razones.push(`solo ${vent.horas} h desde la última carga de dedos`); }
+  if (vent.nivel === 'red') { veredicto = veredicto === 'descanso' ? 'descanso' : 'suave'; razones.push(`solo ${vent.dias} día${vent.dias === 1 ? '' : 's'} desde la última carga de dedos`); }
 
   if (test && !test.sinBase) {
     if (test.pct <= -8) { veredicto = 'descanso'; razones.push(`test ${test.pct} % por debajo de tu media`); }
@@ -131,11 +134,22 @@ const TXT = {
 
 export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
   const ser  = useMemo(() => seriesCarga(cal, ent), [cal, ent]);
-  const fat  = useMemo(() => fatigaAcumulada(ser, td()), [ser]);
-  const ref  = useMemo(() => referencias(ser, td()), [ser]);
+
+  // El panel responde "cómo llego a la próxima sesión", así que proyecta a
+  // mañana por la mañana. Calculado a hoy, la última carga de dedos era la de
+  // hoy mismo: la ventana daba 0 h y rojo siempre, y era imposible que un día
+  // de entreno saliera verde. Eso no es información.
+  // Contrapartida asumida: un día de descanso se lee un pelín más fresco.
+  const manana = useMemo(() => {
+    const d = new Date(td()); d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const fat  = useMemo(() => fatigaAcumulada(ser, manana), [ser, manana]);
+  const ref  = useMemo(() => referencias(ser, manana), [ser, manana]);
   const fr   = useMemo(() => frescura(fat, ref), [fat, ref]);
   const test = useMemo(() => compararTest(treg, t25), [treg, t25]);
-  const vent = useMemo(() => ventanaTendinosa(ser), [ser]);
+  const vent = useMemo(() => ventanaTendinosa(ser, manana), [ser, manana]);
   const rec  = useMemo(() => recomendar(fr, test, vent), [fr, test, vent]);
 
   const ejeFuerza = test && !test.sinBase
@@ -153,7 +167,10 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
 
   return (
     <div className="page">
-      <h2 className="p-title">Hoy</h2>
+      <h2 className="p-title" style={{ marginBottom: 4 }}>Próxima sesión</h2>
+      <div style={{ fontSize: 11, color: '#8B7D6B', marginBottom: 14, lineHeight: 1.45 }}>
+        Cómo llegas a mañana ({manana}) con la carga que ya tienes registrada.
+      </div>
 
       {/* ---- la respuesta, arriba del todo ---- */}
       <div className="card" style={{ padding: 16, borderLeft: `3px solid ${v.c}` }}>
@@ -226,13 +243,14 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
           <div style={{ fontSize: 12, marginTop: 2 }}>{vent.msg}</div>
           <div style={{ fontSize: 11, marginTop: 6, opacity: 0.75 }}>
             Carga de dedos 7 d: <b>{vent.acum}</b> · {vent.sesiones} sesion{vent.sesiones === 1 ? '' : 'es'}
-            {vent.horas !== null && <> · última hace <b>{vent.horas} h</b></>}
+            {vent.dias !== null && <> · última hace <b>{vent.dias} día{vent.dias === 1 ? '' : 's'}</b></>}
           </div>
         </div>
       </div>
 
       <div style={{ fontSize: 10, color: '#5E5445', padding: '4px 4px 0', lineHeight: 1.45 }}>
-        Sin predicciones: todo lo de esta pantalla describe lo que ya ha pasado.
+        Sin predicciones de rendimiento: esto solo aplica el decaimiento conocido
+        a la carga ya registrada.
         Umbral de oclusión {Math.round(PARAMS.umbralOclusion * 100)} % · τ dedos {PARAMS.tau.dedos} d.
       </div>
     </div>
