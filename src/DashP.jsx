@@ -20,18 +20,26 @@ import { td } from './lib.js';
 
 const COL = { dedos: '#E8A838', cuerpo: '#3A8FB7', sistemico: '#6B9F4A', mal: '#D4563A', bien: '#6B9F4A', medio: '#E8A838' };
 
-/* --------- frescura: se calibra contra su propio historial --------- */
-function referencias(series) {
+/* --------- frescura: se calibra contra su propio historial ---------
+   La referencia tiene que estar en las MISMAS unidades que aquello con lo
+   que se compara. Antes era el percentil 90 de la carga de UN día suelto y
+   se comparaba con la fatiga acumulada de 30 días, que es una suma de
+   muchos días y por construcción sale mayor: la frescura se clavaba en 0 en
+   cuanto encadenaba dos o tres días de entreno, dijera lo que dijera la
+   intensidad. Ahora la referencia es el percentil 90 de la propia fatiga
+   acumulada, día a día, en los últimos 90 días. */
+function referencias(series, hastaISO) {
   const vals = { dedos: [], cuerpo: [], sistemico: [] };
-  const desde = new Date(td()); desde.setDate(desde.getDate() - 90);
-  for (const [f, c] of Object.entries(series)) {
-    if (new Date(f) < desde) continue;
-    for (const k of Object.keys(vals)) if (c[k] > 0) vals[k].push(c[k]);
+  const fin = new Date(hastaISO);
+  for (let d = 90; d >= 0; d--) {
+    const x = new Date(fin); x.setDate(x.getDate() - d);
+    const fa = fatigaAcumulada(series, x.toISOString().slice(0, 10));
+    for (const k of Object.keys(vals)) if (fa[k] > 0) vals[k].push(fa[k]);
   }
   const ref = {};
   for (const k of Object.keys(vals)) {
     const v = vals[k].sort((a, b) => a - b);
-    ref[k] = v.length ? (v[Math.floor(v.length * 0.9)] || v[v.length - 1]) : 1;
+    ref[k] = v.length ? (v[Math.min(v.length - 1, Math.floor(v.length * 0.9))] || 1) : 1;
   }
   return ref;
 }
@@ -124,7 +132,7 @@ const TXT = {
 export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
   const ser  = useMemo(() => seriesCarga(cal, ent), [cal, ent]);
   const fat  = useMemo(() => fatigaAcumulada(ser, td()), [ser]);
-  const ref  = useMemo(() => referencias(ser), [ser]);
+  const ref  = useMemo(() => referencias(ser, td()), [ser]);
   const fr   = useMemo(() => frescura(fat, ref), [fat, ref]);
   const test = useMemo(() => compararTest(treg, t25), [treg, t25]);
   const vent = useMemo(() => ventanaTendinosa(ser), [ser]);
