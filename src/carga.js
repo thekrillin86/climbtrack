@@ -19,6 +19,7 @@
  */
 
 import { TIPO_POR_ID, ejerciciosDeBloque, ESCALA_ESFUERZO } from './catalogo.js';
+import { AGARRE_POR_ID, agarreDe } from './agarres.js';
 
 /* ------------------------------------------------------------------
    PARÁMETROS — todos editables, ninguno es sagrado
@@ -170,22 +171,39 @@ export function cargaPorDetalle(sesionEnt) {
     const min = Number(b.minutos) || 0;
     const cuota = min / ejs.length;
 
+    // Chips de agarre marcados a mano en el bloque. Cuando están, mandan
+    // ellos: en el rocódromo no hay tamaño de regleta del que deducir nada,
+    // y `e.agarre` vale 'mixto' en bloques, travesías y suspensiones. Es el
+    // mismo criterio que repartoAgarres() de agarres.js.
+    const chips = Array.isArray(b.agarres) ? b.agarres.filter(a => AGARRE_POR_ID[a]) : [];
+    let dedosBloque = 0;
+
     for (const e of ejs) {
       const t = TIPO_POR_ID[e.tipo];
       if (!t) continue;
       const x = intensidadBloque(b, e);
       const coste = costeSegunEscala(x);
       const esf = costeEsfuerzo(x.i);
+      const dd = cuota * coste * (t.dedos ?? 0);
 
-      r.dedos     += cuota * coste * (t.dedos  ?? 0);
+      r.dedos     += dd;
       r.cuerpo    += cuota * esf   * (t.cuerpo ?? 0);
       r.sistemico += cuota * esf   * (t.sist   ?? 0);
       if (x.i > r.pico) r.pico = x.i;
       if (x.escala !== 'mvc') r.estimado = true;
 
-      if (e.agarre && t.dedos > 0.3) {
-        r.porAgarre[e.agarre] = (r.porAgarre[e.agarre] || 0) + cuota * coste * t.dedos;
+      if (t.dedos > 0.3) {
+        if (chips.length) dedosBloque += dd;
+        else {
+          const a = agarreDe(e);
+          if (a) r.porAgarre[a] = (r.porAgarre[a] || 0) + dd;
+        }
       }
+    }
+
+    // La carga de dedos del bloque se reparte entre los chips marcados.
+    if (chips.length && dedosBloque > 0) {
+      for (const a of chips) r.porAgarre[a] = (r.porAgarre[a] || 0) + dedosBloque / chips.length;
     }
   }
   if (!hayDetalle) return null;
