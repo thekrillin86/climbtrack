@@ -183,13 +183,20 @@ volver a migrar.
   dashboard y la quitó: no la leía porque no la consideraba objetiva. El
   dashboard da estado actual y motivos, no futuros.
 
-  Matiz decidido el 17-08-2026: el panel se titula **«Próxima sesión»** y
-  proyecta a **mañana por la mañana**. Eso no es una predicción de
-  rendimiento — es aplicar el decaimiento ya conocido (τ por canal) a carga
-  que ya está registrada. Se hizo porque, calculado a hoy, la última carga de
-  dedos era la de hoy mismo: la ventana tendinosa daba 0 h y rojo **siempre**,
-  y era imposible que un día de entreno saliera verde. Contrapartida asumida
-  por él: un día de descanso se lee un pelín más fresco. No lo deshagas.
+  **El 17-08-2026 se probó proyectar el panel a mañana y se revirtió el mismo
+  día. No lo vuelvas a proponer.** El argumento era que, calculado a hoy, la
+  ventana tendinosa daba «0 h» y rojo siempre el día que Juan entrenaba. Ese
+  argumento era falso: si ha entrenado hoy, hace cero días de su última carga
+  de dedos, y que el veredicto diga «suave» es la respuesta correcta, no una
+  tautología molesta. Proyectar arreglaba un problema inexistente y creaba uno
+  real — la pantalla decía «solo 1 día desde tu última carga» el mismo día en
+  que había entrenado por la mañana. **El panel describe el momento actual.**
+- **Precisión que el dato no tiene.** `ct5_ent` guarda **fecha, no hora**. Por
+  tanto «horas desde la última carga de dedos» no existe como dato. El código
+  viejo se lo inventaba por abajo (`0 h` siempre) y el arreglo del 17-08 se lo
+  inventó por arriba (`1 día` siempre). Los dos rellenaban el hueco. Se cuenta
+  en **días enteros** y el mismo día se dice «hoy». Si algún día hace falta de
+  verdad la hora, se añade al formulario y se guarda — no se deduce.
 - **Cajas negras.** Si un número sale de algo, la pantalla dice de dónde sale.
   Ver la tarjeta "De dónde sale cada número" en `CargaP.jsx`.
 - **Datos inventados para rellenar huecos.** Si falta el dato, se dice que
