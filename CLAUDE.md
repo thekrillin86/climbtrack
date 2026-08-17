@@ -88,7 +88,7 @@ Migraciones existentes: 1 sin-op · 2 catálogo de ejercicios · 3 Suunto ·
 
 ## 4. Modelo de carga — decisiones ya tomadas, no las deshagas
 
-`src/carga.js`. Tres cosas que parecen mejorables y no lo son:
+`src/carga.js`. Cuatro cosas que parecen mejorables y no lo son:
 
 **a) Tres canales, nunca un total.** `dedos`, `cuerpo`, `sistemico` se
 muestran por separado. No existe método aceptado para sumar carga entre
@@ -105,8 +105,57 @@ Aplicar el umbral de oclusión a un RPE es un error de categoría: el umbral
 está definido sobre porcentaje de fuerza máxima, no sobre esfuerzo percibido.
 Ese bug ya se cometió una vez y daba `dedos = 0` en días de roca completos.
 
+**Qué escala se usa lo decide el TIPO de ejercicio, no qué campo esté
+relleno.** El conjunto está en `catalogo.js`:
+
+```js
+export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
+```
+
+Un bloque al 65 % es el 65 % de tu nivel **de bloque**, no el 65 % de la
+fuerza máxima de tus dedos. Su porcentaje va a `pct_max` y se lee con
+`costeEsfuerzo`, **sin umbral**. Solo las suspensiones y los tests pasan por
+`costeIntensidad`. Da igual que el histórico tenga ese número guardado en
+`pct_mvc`: `intensidadBloque` lee los dos campos y la escala la elige por
+`e.tipo`, así que no hay nada que migrar.
+
+Este error se ha cometido ya **dos veces, en direcciones opuestas**: primero
+aplicando el umbral a un RPE, después aplicándolo al % de un bloque (un
+bloque al 65 % desaparecía: `costeIntensidad(0,65) = 0`). Antes de tocar
+estas curvas, mira de qué escala viene el número.
+
 **c) τ distinto por canal** (`dedos: 2.5`, `cuerpo: 1.5`, `sistemico: 1.0`
 días). Los dedos se recuperan más lento. No los unifiques.
+
+**d) `PARAMS.escalaActividad` — el puente entre los dos motores de carga.**
+
+Hay dos motores y no daban la misma unidad:
+
+- `cargaPorDetalle` — minutos × coste × coeficiente de tipo, cuando la
+  sesión tiene bloques.
+- `cargaPorActividad` — estimación desde actividad, fatiga y reloj, para los
+  días que solo tienen eso.
+
+`seriesCarga` los mezcla en la misma serie, así que tienen que estar en la
+misma escala. Medido el **17-08-2026** sobre los **30 días del histórico que
+tienen los dos cálculos**, y ya con la escala de esfuerzo de (b) aplicada, la
+mediana de `detalle / actividad` era:
+
+| canal     | factor |
+|-----------|--------|
+| dedos     | ×1,00  |
+| cuerpo    | ×2,92  |
+| sistémico | ×3,41  |
+
+Es decir: el mismo día puntuaba el triple en cuerpo y sistémico si rellenaba
+los bloques que si ponía solo la actividad. **Rellenar el formulario le
+castigaba.** Esos tres números son `PARAMS.escalaActividad` y multiplican la
+salida de `cargaPorActividad`. Dedos sale 1,00: ese canal cuadró solo al
+arreglar (b).
+
+No son una constante universal: son la relación medida entre **sus** dos
+formas de apuntar. **Si tocas los coeficientes de canal de `catalogo.js`
+(`dedos` / `cuerpo` / `sist` de los 11 tipos), hay que volver a medirlos.**
 
 Todos los parámetros están en `PARAMS`, arriba del fichero, a la vista y
 editables. Mantenlo así: nada de constantes escondidas a mitad de función.
@@ -133,6 +182,14 @@ volver a migrar.
 - **Predicciones.** Había una gráfica de predicción de rendimiento en el
   dashboard y la quitó: no la leía porque no la consideraba objetiva. El
   dashboard da estado actual y motivos, no futuros.
+
+  Matiz decidido el 17-08-2026: el panel se titula **«Próxima sesión»** y
+  proyecta a **mañana por la mañana**. Eso no es una predicción de
+  rendimiento — es aplicar el decaimiento ya conocido (τ por canal) a carga
+  que ya está registrada. Se hizo porque, calculado a hoy, la última carga de
+  dedos era la de hoy mismo: la ventana tendinosa daba 0 h y rojo **siempre**,
+  y era imposible que un día de entreno saliera verde. Contrapartida asumida
+  por él: un día de descanso se lee un pelín más fresco. No lo deshagas.
 - **Cajas negras.** Si un número sale de algo, la pantalla dice de dónde sale.
   Ver la tarjeta "De dónde sale cada número" en `CargaP.jsx`.
 - **Datos inventados para rellenar huecos.** Si falta el dato, se dice que
@@ -195,18 +252,28 @@ src/
 
 ## 10. Pendiente
 
-- [ ] Firestore: sincronización y copia de seguridad real (ahora mismo un
-      móvil perdido = todos los datos perdidos). Debe funcionar **offline en
-      la roca**: caché local, sincroniza al recuperar cobertura.
-- [ ] Copia semanal automática a Drive (`05.- APP ESCALADA`).
-- [ ] Chips de agarre en el formulario de rocódromo (en roca ya están).
-- [ ] Iconos `maskable` en el manifest (ahora se ven con marco blanco al
-      instalar en Android).
 - [ ] Unificar `ct5_cal` / `ct5_ent` / `ct5_roca` en una colección `sesiones`.
       **Es el cambio de mayor riesgo del proyecto. Va el último y con la
       copia de seguridad verificada.**
 - [ ] Revisar solapes de mesociclos 1/3 y 1/4 (dos semanas de solape, puede
       haber más etiquetas mal).
+- [ ] `porAgarre` de `carga.js` no lo pinta ninguna pantalla todavía. El
+      cálculo ya reparte por los chips del bloque; falta enseñarlo.
+
+### Hecho (para que no se vuelva a proponer)
+
+- [x] **Firestore**: `src/nube.js` + pestaña Nube. Copia de seguridad con
+      restauración manual, no sincronización bidireccional. Funciona offline:
+      Firestore encola y sube al volver la cobertura. Nunca baja nada solo.
+- [x] **Copia semanal automática**: `guardarHistorico()` en `nube.js`, una
+      foto congelada por semana. **Va a Firestore, no a Drive** — la carpeta
+      `05.- APP ESCALADA` se quedó sin usar. Si quiere Drive de verdad, sigue
+      pendiente.
+- [x] **Chips de agarre en el formulario de rocódromo**: están en cada bloque
+      del formulario de entrenamiento (`App.jsx`), y desde el 17-08-2026
+      `cargaPorDetalle` los usa para repartir la carga de dedos.
+- [x] **Iconos `maskable`**: `public/icon-512-maskable.png` y `purpose`
+      explícito en `vite.config.js`.
 
 ---
 
