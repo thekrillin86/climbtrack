@@ -104,8 +104,22 @@ function ventanaTendinosa(series, refISO) {
   return { nivel, msg, acum: Math.round(acum * 10) / 10, sesiones, dias };
 }
 
+/* --------- ¿ha habido cardio de verdad? ---------
+   El panel afirmaba "probablemente por cardio reciente" sin mirar el
+   calendario. Si no hay cardio en los últimos días, no se afirma ninguna
+   causa: se dice que el sistémico está bajo y ya. */
+function cardioReciente(cal, refISO, dias = 7) {
+  const ref = new Date(refISO);
+  const fechas = (cal || [])
+    .filter(d => d.fecha && /cardio/i.test(d.activitat || ''))
+    .filter(d => { const t = (ref - new Date(d.fecha)) / 86400000; return t >= 0 && t <= dias; })
+    .map(d => d.fecha)
+    .sort();
+  return fechas.length ? fechas[fechas.length - 1] : null;
+}
+
 /* --------- la recomendación, con su porqué --------- */
-function recomendar(fr, test, vent) {
+function recomendar(fr, test, vent, cardio) {
   const razones = [];
   let veredicto = 'fuerte';
 
@@ -120,7 +134,10 @@ function recomendar(fr, test, vent) {
     else if (test.pct >= 3) { razones.push(`test ${test.pct > 0 ? '+' : ''}${test.pct} % sobre tu media`); }
   }
 
-  if (fr.sistemico < 40) { if (veredicto === 'fuerte') veredicto = 'suave'; razones.push(`sistémico bajo (${fr.sistemico}) — probablemente por cardio reciente`); }
+  if (fr.sistemico < 40) {
+    if (veredicto === 'fuerte') veredicto = 'suave';
+    razones.push(`sistémico bajo (${fr.sistemico})${cardio ? ` — cardio el ${cardio}` : ''}`);
+  }
 
   if (!razones.length) razones.push('los tres canales por encima del 65 % y el test en su sitio');
   return { veredicto, razones };
@@ -150,7 +167,8 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
   const fr   = useMemo(() => frescura(fat, ref), [fat, ref]);
   const test = useMemo(() => compararTest(treg, t25), [treg, t25]);
   const vent = useMemo(() => ventanaTendinosa(ser, manana), [ser, manana]);
-  const rec  = useMemo(() => recomendar(fr, test, vent), [fr, test, vent]);
+  const cardio = useMemo(() => cardioReciente(cal, manana), [cal, manana]);
+  const rec  = useMemo(() => recomendar(fr, test, vent, cardio), [fr, test, vent, cardio]);
 
   const ejeFuerza = test && !test.sinBase
     ? Math.max(0, Math.min(100, Math.round(50 + test.pct * 4)))
