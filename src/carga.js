@@ -98,13 +98,28 @@ export function costeEsfuerzo(fraccion) {
   return Math.pow(Math.min(i, 1), PARAMS.exponente);
 }
 
+/* ------------------------------------------------------------------
+   Qué escala decide el TIPO de ejercicio, no qué campo esté relleno.
+
+   Un bloque "al 65 %" es el 65 % de su nivel DE BLOQUE, no el 65 % de la
+   fuerza máxima de sus dedos. Pasarlo por el umbral de oclusión lo borraba:
+   al 65 % costeIntensidad da 0 y al 75 % da 0,07. Es el mismo error de
+   categoría del §4b de CLAUDE.md, en la otra dirección.
+   ------------------------------------------------------------------ */
+export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
+
 /**
  * Intensidad de un bloque. Devuelve además de qué escala viene, porque
  * el coste se calcula distinto según sea %MVC medido o esfuerzo percibido.
  */
 function intensidadBloque(bloque, ejercicio) {
   const pct = ejercicio?.params?.pct_mvc ?? ejercicio?.params?.pct_max;
-  if (pct > 0) return { i: Math.min(pct / 100, 1), escala: 'mvc' };
+  if (pct > 0) {
+    return {
+      i: Math.min(pct / 100, 1),
+      escala: ESCALA_ESFUERZO.has(ejercicio?.tipo) ? 'esfuerzo' : 'mvc',
+    };
+  }
 
   // suspensiones sin porcentaje: se asume el protocolo habitual
   const t = ejercicio?.tipo;
@@ -117,7 +132,9 @@ function intensidadBloque(bloque, ejercicio) {
 
 /** Aplica la curva que toque según de dónde venga la intensidad. */
 function costeSegunEscala(x) {
-  return x.escala === 'rpe' ? costeEsfuerzo(x.i) : costeIntensidad(x.i);
+  return (x.escala === 'mvc' || x.escala === 'mvc_estimado')
+    ? costeIntensidad(x.i)
+    : costeEsfuerzo(x.i);
 }
 
 /* ------------------------------------------------------------------
