@@ -18,7 +18,7 @@
  * Todos los coeficientes están aquí arriba, a la vista, para que los toques.
  */
 
-import { TIPO_POR_ID, ejerciciosDeBloque } from './catalogo.js';
+import { TIPO_POR_ID, ejerciciosDeBloque, ESCALA_ESFUERZO } from './catalogo.js';
 
 /* ------------------------------------------------------------------
    PARÁMETROS — todos editables, ninguno es sagrado
@@ -99,14 +99,14 @@ export function costeEsfuerzo(fraccion) {
 }
 
 /* ------------------------------------------------------------------
-   Qué escala decide el TIPO de ejercicio, no qué campo esté relleno.
+   La escala la decide el TIPO de ejercicio, no qué campo esté relleno.
+   El conjunto ESCALA_ESFUERZO vive en catalogo.js, junto a los tipos.
 
    Un bloque "al 65 %" es el 65 % de su nivel DE BLOQUE, no el 65 % de la
    fuerza máxima de sus dedos. Pasarlo por el umbral de oclusión lo borraba:
    al 65 % costeIntensidad da 0 y al 75 % da 0,07. Es el mismo error de
    categoría del §4b de CLAUDE.md, en la otra dirección.
    ------------------------------------------------------------------ */
-export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
 
 /**
  * Intensidad de un bloque. Devuelve además de qué escala viene, porque

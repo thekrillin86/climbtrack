@@ -51,6 +51,15 @@ export const TIPO_POR_ID = Object.fromEntries(TIPOS.map(t => [t.id, t]));
 export const AGARRES = ['canto', 'pinza', 'romo', 'bidedo', 'mixto', '—'];
 
 /* ------------------------------------------------------------------
+   Tipos cuyo porcentaje NO es porcentaje de fuerza máxima.
+   Un bloque al 65 % es el 65 % de tu nivel DE BLOQUE; una vía al 80 %,
+   el 80 % de tu nivel de vía. Ese número va a `pct_max` y se lee con la
+   curva de esfuerzo, sin umbral de oclusión. `carga.js` importa este
+   mismo conjunto: la escala la decide el TIPO, y se define una sola vez.
+   ------------------------------------------------------------------ */
+export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
+
+/* ------------------------------------------------------------------
    CLASIFICADOR
    Convierte una cadena antigua en { tipo, params }.
    Se usa para migrar el histórico y para sugerir tipo al escribir.
@@ -72,13 +81,18 @@ export function clasificar(texto) {
   return null;   // sin clasificar: se conserva el texto y lo revisas tú
 }
 
-/** Extrae los parámetros que estaban escondidos dentro del nombre. */
-export function extraerParams(texto) {
+/**
+ * Extrae los parámetros que estaban escondidos dentro del nombre.
+ * El tipo es opcional y solo decide dónde va el porcentaje: en los tipos de
+ * ESCALA_ESFUERZO a `pct_max`, en el resto a `pct_mvc`. Sin tipo, se
+ * comporta como siempre.
+ */
+export function extraerParams(texto, tipo) {
   const t = String(texto || '');
   const p = {};
   let m;
   if ((m = t.match(/(\d+)\s*mm/i)))            p.regleta_mm = +m[1];
-  if ((m = t.match(/(\d+)\s*%/)))              p.pct_mvc    = +m[1];
+  if ((m = t.match(/(\d+)\s*%/)))              p[ESCALA_ESFUERZO.has(tipo) ? 'pct_max' : 'pct_mvc'] = +m[1];
   if ((m = t.match(/\+\s*(\d+)\s*kg/i)))       p.lastre_kg  = +m[1];
   if ((m = t.match(/(\d+)\s*mov/i)))           p.movimientos= +m[1];
   if ((m = t.match(/(\d+)["”]\s*:?\s*(\d+)["”]?/))) { p.trabajo_s = +m[1]; p.descanso_s = +m[2]; }
@@ -92,7 +106,7 @@ export function parseEjercicio(texto) {
   return {
     tipo: tipo || 'SIN_CLASIFICAR',
     nombre: String(texto || '').trim(),
-    params: extraerParams(texto),
+    params: extraerParams(texto, tipo),
     agarre: tipo ? (TIPO_POR_ID[tipo]?.agarre ?? '—') : '—',
     textoOriginal: String(texto || '').trim(),   // se conserva SIEMPRE
   };
