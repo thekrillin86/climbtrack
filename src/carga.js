@@ -72,6 +72,21 @@ export const PARAMS = {
     'fisio':       { dedos: 0.00, cuerpo: 0.10, sistemico: 0.05 },
     'descans':     { dedos: 0.00, cuerpo: 0.00, sistemico: 0.00 },
   },
+
+  // Puente entre los dos motores de carga. cargaPorDetalle (minutos x coste
+  // x coeficiente de tipo) y cargaPorActividad (actividad + fatiga + reloj)
+  // no daban la misma unidad: el mismo dia puntuaba el triple en cuerpo y
+  // sistemico si rellenabas los bloques que si ponias solo la actividad.
+  // Rellenar el formulario te castigaba.
+  //
+  // Estos tres numeros son la mediana de detalle/actividad en los 30 dias
+  // del historico que tienen los dos calculos, medida el 17-08-2026 y ya
+  // con la escala de esfuerzo del cambio anterior aplicada. Dedos sale
+  // 1,00: ese canal cuadraba solo.
+  //
+  // Si tocas los coeficientes de canal de catalogo.js, estos tres numeros
+  // hay que volver a medirlos.
+  escalaActividad: { dedos: 1.00, cuerpo: 2.92, sistemico: 3.41 },
 };
 
 /* ------------------------------------------------------------------
@@ -200,10 +215,11 @@ export function cargaPorActividad(dia) {
   const i = Math.min(ff / PARAMS.escalaFatiga, 1);
   const coste = costeEsfuerzo(i);                  // fatiga NO es %MVC: sin umbral
   const min = Number(dia?.suunto?.min) || 60;      // usa el reloj si lo hay
+  const esc = PARAMS.escalaActividad;              // puente con cargaPorDetalle
   return redondear({
-    dedos:     (min / 60) * coste * coef.dedos * 30,
-    cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * 30,
-    sistemico: cargaSistemica(dia, coef, i, min),
+    dedos:     (min / 60) * coste * coef.dedos * 30 * esc.dedos,
+    cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * 30 * esc.cuerpo,
+    sistemico: cargaSistemica(dia, coef, i, min) * esc.sistemico,
     pico: i, porAgarre: {}, estimado: true, origen: dia?.suunto ? 'actividad+reloj' : 'actividad',
   });
 }
