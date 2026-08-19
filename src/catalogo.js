@@ -48,7 +48,11 @@ export const TIPOS = [
 
 export const TIPO_POR_ID = Object.fromEntries(TIPOS.map(t => [t.id, t]));
 
-export const AGARRES = ['canto', 'pinza', 'romo', 'bidedo', 'mixto', '—'];
+/* La taxonomía de agarres vive SOLO en `agarres.js`. Aquí había una lista
+   suelta de la fase 2 —canto, pinza, romo, bidedo, mixto, —— que no importaba
+   nadie y que contradecía la de Juan: le faltaban regleta mediana, regleta
+   pequeña, monodedo y tridedo. Un `import { AGARRES } from './catalogo.js'`
+   por descuido pintaba seis chips en blanco. Borrada el 19-08-2026. */
 
 /* ------------------------------------------------------------------
    Tipos cuyo porcentaje NO es porcentaje de fuerza máxima.
@@ -73,8 +77,8 @@ export function clasificar(texto) {
   if (/traves[íi]a|travesia/.test(x))                            return 'TRAVESIA';
   if (/bloque|bloc\b/.test(x))                                   return 'BLOQUE';
   if (/v[íi]as?\b/.test(x))                                      return 'VIA_ROCO';
-  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin/.test(x)) return 'GYM_TREN_INF';
-  if (/hombro|rotaci[óo]n|rehabilit|apertura|tracci[óo]n/.test(x)) return 'HOMBRO';
+  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto|caj[óo]n|cajon/.test(x)) return 'GYM_TREN_INF';
+  if (/hombro|rotaci[óo]n|rehabilit|apertura|tracci[óo]n|deltoide/.test(x)) return 'HOMBRO';
   if (/core|abdominal|l-sit|plancha|placha|russian|escalador/.test(x)) return 'CORE';
   if (/press|remo|flexion|fondos|b[íi]ceps|tr[íi]ceps|trx|palof|militar|banca|nataci[óo]n/.test(x)) return 'GYM_TREN_SUP';
   if (/movilidad|estiramiento|calentamiento|yoga|90/.test(x))    return 'MOVILIDAD';
@@ -159,7 +163,11 @@ export function etiqueta(e) {
   const p = e.params || {};
   const trozos = [t ? t.nombre : e.nombre];
   if (p.regleta_mm)  trozos.push(`${p.regleta_mm} mm`);
-  if (p.pct_mvc)     trozos.push(`${p.pct_mvc} %`);
+  // Los dos, no solo pct_mvc: desde que el % de bloque, travesía y vía va a
+  // pct_max, esta línea dejó de enseñarlo y el dato desaparecía de pantalla
+  // aunque estuviera guardado.
+  const pct = p.pct_mvc ?? p.pct_max;
+  if (pct)           trozos.push(`${pct} %`);
   if (p.lastre_kg)   trozos.push(`+${p.lastre_kg} kg`);
   if (p.trabajo_s)   trozos.push(p.descanso_s ? `${p.trabajo_s}"/${p.descanso_s}"` : `${p.trabajo_s}"`);
   if (p.movimientos) trozos.push(`${p.movimientos} mov`);
