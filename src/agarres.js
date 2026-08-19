@@ -2,7 +2,7 @@
  * ClimbTrack · FASE 4a — tipos de agarre
  * archivo nuevo: src/agarres.js
  *
- * Taxonomía de Juan, siete tipos. Dos formas de rellenarlo:
+ * Taxonomía de Juan, ocho tipos. Dos formas de rellenarlo:
  *
  *   - SUSPENSIONES: se deduce solo del tamaño de regleta. Cero pulsaciones.
  *   - ROCA Y ROCÓDROMO: hay que marcarlo (fase 4b, los chips), pero se
@@ -12,14 +12,25 @@
 
 import { ejerciciosDeBloque } from './catalogo.js';
 
+/**
+ * Los agarres de Juan. Ocho desde el 19-08-2026, cuando pidió el tridedo
+ * ("es un tipo de agarre muy habitual en escalada"). Los tres últimos van por
+ * número de dedos descendente: tridedo, bidedo, monodedo.
+ *
+ * Añadir un agarre es puramente aditivo: no toca ningún registro guardado y no
+ * necesita migración. Todo lo que pinta agarres sale de este array —los chips
+ * del formulario, la pestaña Carga y el filtro de `carga.js`—, así que basta
+ * con tocarlo aquí.
+ */
 export const AGARRES = [
   { id: 'canto',      nombre: 'Canto',            orden: 1 },
   { id: 'reg_media',  nombre: 'Regleta mediana',  orden: 2 },
   { id: 'reg_peque',  nombre: 'Regleta pequeña',  orden: 3 },
   { id: 'pinza',      nombre: 'Pinza',            orden: 4 },
   { id: 'romo',       nombre: 'Romo',             orden: 5 },
-  { id: 'bidedo',     nombre: 'Bidedo',           orden: 6 },
-  { id: 'monodedo',   nombre: 'Monodedo',         orden: 7 },
+  { id: 'tridedo',    nombre: 'Tridedo',          orden: 6 },
+  { id: 'bidedo',     nombre: 'Bidedo',           orden: 7 },
+  { id: 'monodedo',   nombre: 'Monodedo',         orden: 8 },
 ];
 
 export const AGARRE_POR_ID = Object.fromEntries(AGARRES.map(a => [a.id, a]));

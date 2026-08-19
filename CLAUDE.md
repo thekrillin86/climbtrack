@@ -162,10 +162,16 @@ editables. Mantenlo así: nada de constantes escondidas a mitad de función.
 
 ---
 
-## 5. Taxonomía de agarres — es la de Juan, son siete
+## 5. Taxonomía de agarres — es la de Juan, son ocho
 
 `src/agarres.js`: canto, regleta mediana, regleta pequeña, pinza, romo,
-bidedo, monodedo. No la simplifiques ni la agrupes.
+**tridedo**, bidedo, monodedo. No la simplifiques ni la agrupes.
+
+El tridedo lo pidió él el 19-08-2026: «es un tipo de agarre muy habitual en
+escalada». Si algún día pide otro, se añade igual — es aditivo, no toca ningún
+registro guardado y **no necesita migración**. Todo lo que pinta agarres sale
+del array `AGARRES`: los chips de los dos formularios, la pestaña Carga y el
+filtro de `carga.js`.
 
 Se rellenan de dos formas: las suspensiones se deducen solas del tamaño de
 regleta (`agarrePorRegleta`), y roca/rocódromo se marcan a mano pero se
@@ -226,7 +232,7 @@ src/
   migrations.js  sistema de migraciones (fase 1)
   catalogo.js    11 tipos de ejercicio + parseo de texto libre (fase 2)
   suunto.js      extracción de datos del reloj (fase 3)
-  agarres.js     7 tipos de agarre (fase 4a)
+  agarres.js     8 tipos de agarre (fase 4a)
   carga.js       modelo de carga por canales
   ciclos.js      macro/mesociclos + migración 5
   DashP.jsx      dashboard nuevo (sustituye a Dash, que sigue en App.jsx
