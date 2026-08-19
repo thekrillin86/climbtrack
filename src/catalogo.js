@@ -95,10 +95,21 @@ export function clasificar(texto) {
   if (/traves[íi]a|travesia/.test(x))                            return 'TRAVESIA';
   if (/bloque|bloc\b/.test(x))                                   return 'BLOQUE';
   if (/v[íi]as?\b/.test(x))                                      return 'VIA_ROCO';
-  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto|caj[óo]n|cajon/.test(x)) return 'GYM_TREN_INF';
+  // `salto` basta para "Salto 1 pie cajon". El `caj[óo]n` que se añadió aquí el
+  // 18-08 rompía "Fondos cajon", que son fondos —tren superior— y caían en
+  // tren inferior por la palabra cajón. En su histórico hay 4 entradas.
+  // El cajón suelto ("Subida al cajón") sigue reconocido, pero MÁS ABAJO:
+  // después de tren superior, para que gane la palabra del ejercicio.
+  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto/.test(x)) return 'GYM_TREN_INF';
   if (/hombro|rotaci[óo]n|rehabilit|apertura|tracci[óo]n|deltoide/.test(x)) return 'HOMBRO';
   if (/core|abdominal|l-sit|plancha|placha|russian|escalador/.test(x)) return 'CORE';
   if (/press|remo|flexion|fondos|b[íi]ceps|tr[íi]ceps|trx|palof|militar|banca|nataci[óo]n/.test(x)) return 'GYM_TREN_SUP';
+  // Cajón sin ejercicio que lo desambigüe ("Subida al cajón", "Step up
+  // cajón"): tren inferior. Va aquí y no arriba para no volver a robarle
+  // "Fondos cajon" al tren superior. Quitarlo del todo dejaría esas cadenas
+  // SIN CLASIFICAR, y un ejercicio sin tipo no suma nada y encima se lleva su
+  // parte de los minutos del bloque —el mismo fallo del "Rfd 10mm".
+  if (/caj[óo]n/.test(x))                                        return 'GYM_TREN_INF';
   if (/movilidad|estiramiento|calentamiento|yoga|90/.test(x))    return 'MOVILIDAD';
   return null;   // sin clasificar: se conserva el texto y lo revisas tú
 }

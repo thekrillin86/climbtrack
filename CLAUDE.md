@@ -84,6 +84,19 @@ Reglas:
 Migraciones existentes: 1 sin-op · 2 catálogo de ejercicios · 3 Suunto ·
 4 agarres · 5 corrección de etiquetas de ciclo.
 
+**Cuidado con las migraciones que RE-PARSEAN texto libre.** `ejerciciosDeBloque`
+devuelve el `ejerciciosCat` guardado si existe, así que arreglar el
+clasificador solo afecta a lo que Juan escriba a partir de ese momento. Es
+tentador añadir una migración que reparsee el histórico, pero **una migración
+así propaga a los datos congelados los fallos que el clasificador tenga ese
+día**. El 19-08-2026 se midió: reparsear no habría recuperado **ni un minuto**
+—0 de 1847 estaban sin clasificar— y en cambio habría estropeado 4 entradas de
+«Fondos cajon», que estaban bien guardadas como tren superior y una regresión
+del clasificador habría pasado a tren inferior.
+
+Antes de proponer una migración de reparseo: **medir cuánto recupera y cuánto
+rompe.** Casi siempre el histórico congelado está mejor como está.
+
 ---
 
 ## 4. Modelo de carga — decisiones ya tomadas, no las deshagas
