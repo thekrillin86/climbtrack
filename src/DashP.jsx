@@ -55,22 +55,34 @@ function frescura(fatiga, ref) {
 
 /* --------- test de hoy contra su media, MISMO MONTAJE --------- */
 function compararTest(treg, t25) {
+  // Dos filtros que no estaban:
+  //  - LAS DOS MANOS. `valor` suma esq+dre, así que un registro con una sola
+  //    mano rellena se compara contra medias de dos y sale un −50 % inventado
+  //    que además dispara "Hoy toca descansar".
+  //  - SOLO 'pre'. Un 'post' son los dedos ya fatigados; mezclarlo con los
+  //    'pre' es comparar cosas distintas, igual que mezclar tamaños de regleta.
   const todos = [...(treg || []), ...(t25 || [])]
-    .filter(r => r.fecha && Number(r.esq) > 0)
+    .filter(r => r.fecha && Number(r.esq) > 0 && Number(r.dre) > 0 && r.momento !== 'post')
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
   if (!todos.length) return null;
 
   const ultimo = todos[todos.length - 1];
-  const mm = String(ultimo.mm || '?');
-
-  // solo tests del MISMO tamaño de regleta y de los últimos 60 días
-  const desde = new Date(ultimo.fecha); desde.setDate(desde.getDate() - 60);
-  const base = todos.filter(r =>
-    String(r.mm) === mm && r !== ultimo && new Date(r.fecha) >= desde
-  );
-
   const valor = r => (Number(r.esq) || 0) + (Number(r.dre) || 0);
   const v = valor(ultimo);
+  // Numérico, no textual: en su histórico conviven "16" y "16.0", que como
+  // texto nunca casan y partirían la serie en dos sin decirlo.
+  const mmNum = Number(ultimo.mm) > 0 ? Number(ultimo.mm) : null;
+  if (mmNum === null) {
+    return { fecha: ultimo.fecha, mm: null, valor: v, n: 0, sinBase: true };
+  }
+
+  // solo tests del MISMO tamaño de regleta y de los 60 días anteriores a él
+  const desde = new Date(ultimo.fecha); desde.setDate(desde.getDate() - 60);
+  const base = todos.filter(r =>
+    Number(r.mm) === mmNum && r !== ultimo && new Date(r.fecha) >= desde
+  );
+
+  const mm = String(mmNum);
   if (base.length < 3) {
     return { fecha: ultimo.fecha, mm, valor: v, n: base.length, sinBase: true };
   }
@@ -92,21 +104,29 @@ function compararTest(treg, t25) {
    El mismo día se dice "hoy" y ya está. Ver CLAUDE.md §6. */
 function ventanaTendinosa(series, refISO) {
   const ref = new Date(refISO);
-  let acum = 0, sesiones = 0, ultima = null;
+  let acum = 0, dias7 = 0, ultima = null, hayDatos = false;
   for (const [f, c] of Object.entries(series)) {
     const d = (ref - new Date(f)) / 86400000;
-    if (d < 0 || d > 7) continue;
-    if (c.dedos > 0) {
-      acum += c.dedos; sesiones++;
+    if (!Number.isFinite(d) || d < 0 || d >= 7) continue;   // 7 días, no 8
+    hayDatos = true;
+    // `cargaDedos` lo pone carga.js mirando el TIPO de ejercicio, no el número.
+    // Antes bastaba con `c.dedos > 0` y un día de gimnasio —0,2 de dedos, todo
+    // coeficientes de 0,05— ponía la ventana en rojo al día siguiente.
+    if (c.cargaDedos) {
+      acum += c.dedos; dias7++;
       if (!ultima || f > ultima) ultima = f;
     }
   }
   const dias = ultima ? Math.round((ref - new Date(ultima)) / 86400000) : null;
-  let nivel = 'green', msg = 'Los dedos han descansado lo suficiente.';
-  if (dias === 0)                        { nivel = 'red';   msg = 'Has cargado dedos hoy.'; }
-  else if (dias !== null && dias < 2)    { nivel = 'red';   msg = '1 día desde tu última carga de dedos.'; }
-  else if (dias !== null && dias < 3)    { nivel = 'amber'; msg = `${dias} días. El tejido sigue en ventana.`; }
-  return { nivel, msg, acum: Math.round(acum * 10) / 10, sesiones, dias, ultima };
+  let nivel = 'green';
+  let msg = hayDatos
+    ? 'Sin carga de dedos en los últimos 7 días.'
+    : 'No hay nada registrado en los últimos 7 días.';
+  if (dias === 0)                     { nivel = 'red';   msg = 'Has cargado dedos hoy.'; }
+  else if (dias === 1)                { nivel = 'red';   msg = '1 día desde tu última carga de dedos.'; }
+  else if (dias === 2)                { nivel = 'amber'; msg = '2 días. El tejido sigue en ventana.'; }
+  else if (dias !== null)             { nivel = 'green'; msg = `${dias} días. Los dedos han descansado lo suficiente.`; }
+  return { nivel, msg, acum: Math.round(acum * 10) / 10, dias7, dias, ultima };
 }
 
 /* --------- ¿ha habido cardio de verdad? ---------
@@ -134,17 +154,28 @@ function recomendar(fr, test, vent, cardio) {
   if (vent.nivel === 'red') { veredicto = veredicto === 'descanso' ? 'descanso' : 'suave'; razones.push(vent.dias === 0 ? 'has cargado dedos hoy' : `solo ${vent.dias} día${vent.dias === 1 ? '' : 's'} desde la última carga de dedos`); }
 
   if (test && !test.sinBase) {
-    if (test.pct <= -8) { veredicto = 'descanso'; razones.push(`test ${test.pct} % por debajo de tu media`); }
-    else if (test.pct <= -4) { if (veredicto === 'fuerte') veredicto = 'suave'; razones.push(`test ${test.pct} % por debajo de tu media`); }
-    else if (test.pct >= 3) { razones.push(`test ${test.pct > 0 ? '+' : ''}${test.pct} % sobre tu media`); }
+    // Math.abs: con el signo puesto salía "test -10.7 % por debajo", que niega
+    // dos veces y se lee como que está por encima.
+    if (test.pct <= -8) { veredicto = 'descanso'; razones.push(`test ${Math.abs(test.pct)} % por debajo de tu media`); }
+    else if (test.pct <= -4) { if (veredicto === 'fuerte') veredicto = 'suave'; razones.push(`test ${Math.abs(test.pct)} % por debajo de tu media`); }
+    else if (test.pct >= 3) { razones.push(`test ${test.pct} % por encima de tu media`); }
   }
 
   if (fr.sistemico < 40) {
     if (veredicto === 'fuerte') veredicto = 'suave';
-    razones.push(`sistémico bajo (${fr.sistemico})${cardio ? ` — cardio el ${cardio}` : ''}`);
+    razones.push(`sistémico bajo (${fr.sistemico})${cardio ? ` — cardio el ${cardio.split('-').reverse().join('/')}` : ''}`);
   }
 
-  if (!razones.length) razones.push('los tres canales por encima del 65 % y el test en su sitio');
+  // La razón de reserva decía "los tres canales por encima del 65 % y el test
+  // en su sitio". Era falsa por dos vías: `cuerpo` no se mira en ningún sitio
+  // de esta función, y "el test en su sitio" se pintaba también cuando no
+  // había ningún test comparable. Ahora enumera solo lo que sí se ha mirado.
+  if (!razones.length) {
+    razones.push(`dedos ${fr.dedos} y sistémico ${fr.sistemico} de 100, y los dedos han descansado`);
+    razones.push(test && !test.sinBase
+      ? `test ${test.pct >= 0 ? '+' : ''}${test.pct} % respecto a tu media`
+      : 'sin test comparable');
+  }
   return { veredicto, razones };
 }
 
@@ -219,7 +250,9 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
         </div>
         <div style={{ fontSize: 10, color: '#5E5445', marginTop: 6, lineHeight: 1.4 }}>
           Cuanto más lejos del centro, mejor. Dedos, cuerpo y sistémico son frescura;
-          fuerza es tu último test contra tu media.
+          fuerza es tu último test contra tu media
+          {test && !test.sinBase ? '.' : ' — y ahora mismo no hay test comparable, así que ese eje está al 50 por defecto.'}
+          {' '}El Estado pesa dedos 40 %, fuerza 30 %, cuerpo 15 % y sistémico 15 %.
         </div>
       </div>
 
@@ -227,12 +260,16 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
       <div className="card" style={{ padding: 16 }}>
         <div className="sh a" style={{ marginBottom: 8 }}>Último test</div>
         {!test ? (
-          <div style={{ fontSize: 12, color: '#8B7D6B' }}>Todavía no hay tests registrados.</div>
+          <div style={{ fontSize: 12, color: '#8B7D6B' }}>
+            Todavía no hay ningún test con las dos manos registrado.
+          </div>
         ) : test.sinBase ? (
           <div style={{ fontSize: 12, color: '#8B7D6B', lineHeight: 1.5 }}>
-            {test.fecha} · regleta {test.mm} mm · {test.valor} N.<br />
-            Solo hay {test.n} test{test.n === 1 ? '' : 's'} más con esa regleta en 60 días.
-            Hacen falta 3 para poder comparar con algo.
+            {test.fecha.split('-').reverse().join('/')} · {test.mm ? <>regleta {test.mm} mm · </> : null}
+            {test.valor} N (suma de las dos manos).<br />
+            {test.mm === null
+              ? 'Este test no tiene anotado el tamaño de regleta, así que no hay con qué compararlo.'
+              : `${test.n === 0 ? 'No hay ningún test más' : `Solo hay ${test.n} test${test.n === 1 ? '' : 's'} más`} con esa regleta en los 60 días anteriores. Hacen falta 3 para poder comparar con algo.`}
           </div>
         ) : (
           <>
@@ -240,11 +277,13 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
               <span style={{ fontSize: 32, fontWeight: 800, color: test.pct >= 0 ? COL.bien : test.pct > -5 ? COL.medio : COL.mal }}>
                 {test.pct > 0 ? '+' : ''}{test.pct} %
               </span>
-              <span style={{ fontSize: 13, color: '#8B7D6B' }}>sobre tu media</span>
+              <span style={{ fontSize: 13, color: '#8B7D6B' }}>respecto a tu media</span>
             </div>
             <div style={{ fontSize: 11, color: '#6B5F52', marginTop: 6, lineHeight: 1.5 }}>
-              {test.fecha} · {test.valor} N contra una media de {test.media} N<br />
-              Comparado solo con tests de <b>regleta {test.mm} mm</b>, {test.n} de los últimos 60 días.
+              {test.fecha.split('-').reverse().join('/')} · {test.valor} N contra una media de {test.media} N,
+              sumando las dos manos.<br />
+              Comparado solo con tests <b>pre</b> de <b>regleta {test.mm} mm</b>, {test.n} de los 60 días
+              anteriores a ese test.
             </div>
           </>
         )}
@@ -257,7 +296,7 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
           <b>Ventana tendinosa</b>
           <div style={{ fontSize: 12, marginTop: 2 }}>{vent.msg}</div>
           <div style={{ fontSize: 11, marginTop: 6, opacity: 0.75 }}>
-            Carga de dedos 7 d: <b>{vent.acum}</b> · {vent.sesiones} sesion{vent.sesiones === 1 ? '' : 'es'}
+            Carga de dedos 7 d: <b>{vent.acum}</b> · {vent.dias7} día{vent.dias7 === 1 ? '' : 's'} con carga
             {vent.ultima && <> · última carga: <b>{vent.ultima.slice(8)}/{vent.ultima.slice(5, 7)}</b></>}
           </div>
         </div>
@@ -267,7 +306,7 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
         Sin predicciones: todo lo de esta pantalla describe lo que ya ha pasado.
         Los días se cuentan enteros porque las sesiones se apuntan por fecha, sin hora.
         Umbral de oclusión {Math.round(PARAMS.umbralOclusion * 100)} % · τ dedos {PARAMS.tau.dedos} d ·
-        el % de bloque y travesía va sin umbral.
+        el % de bloque, travesía y vía va sin umbral.
       </div>
     </div>
   );

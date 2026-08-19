@@ -98,6 +98,18 @@ export const PARAMS = {
   // Duración que se asume cuando el reloj no dice nada. Es una suposición, no
   // un dato: si el día trae minutos del Suunto se usan esos.
   minutosPorDefecto: 60,
+
+  // A partir de qué coeficiente de canal se considera que un ejercicio (o una
+  // actividad) carga los dedos DE VERDAD. Decide dos cosas: qué días cuentan
+  // para la ventana tendinosa y qué ejercicios entran en el reparto por
+  // agarre. Se decide por TIPO, no por magnitud: un gimnasio entero suma 0,2
+  // de dedos —coeficientes de 0,05— y la ventana lo daba por bueno, así que el
+  // día después de ir al gimnasio la pantalla decía "1 día desde tu última
+  // carga de dedos" y se ponía roja. Un rocódromo da 18. No es lo mismo.
+  // Con 0,30: cuentan roca (0,80), rocódromo (0,85), suspensiones (1,00),
+  // bloque (0,85), travesía (0,60), vía (0,70) y los tests (0,95). No cuentan
+  // gimnasio, yoga, movilidad, core, hombro ni cardio.
+  umbralCanalDedos: 0.30,
 };
 
 /* ------------------------------------------------------------------
@@ -172,7 +184,7 @@ export function cargaPorDetalle(sesionEnt) {
   if (!Array.isArray(bloques) || !bloques.length) return null;
 
   let hayDetalle = false;
-  const r = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {} };
+  const r = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {}, cargaDedos: false };
 
   for (const b of bloques) {
     const ejs = ejerciciosDeBloque(b);
@@ -201,8 +213,12 @@ export function cargaPorDetalle(sesionEnt) {
       r.sistemico += cuota * esf   * (t.sist   ?? 0);
       if (x.i > r.pico) r.pico = x.i;
       if (x.escala !== 'mvc') r.estimado = true;
+      // ¿Este día cuenta como "carga de dedos"? Se decide por el TIPO de
+      // ejercicio, no por el número: un gimnasio entero da 0,2 de dedos y eso
+      // no es colgarse de nada. Ver PARAMS.umbralCanalDedos.
+      if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos) r.cargaDedos = true;
 
-      if (t.dedos > 0.3) {
+      if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos) {
         if (chips.length) dedosBloque += dd;
         else {
           const a = agarreDe(e);
@@ -255,6 +271,7 @@ export function cargaPorActividad(dia) {
     cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * PARAMS.escalaBase * esc.cuerpo,
     sistemico: cargaSistemica(s, coef, i, min) * esc.sistemico,
     pico: i, porAgarre: {}, estimado: true,
+    cargaDedos: coef.dedos >= PARAMS.umbralCanalDedos,
     origen: (minReloj || Number(s?.kcal) > 0) ? 'actividad+reloj' : 'actividad',
   });
 }
@@ -279,9 +296,10 @@ export function seriesCarga(cal, ent) {
   const porDia = {};
   const add = (fecha, c) => {
     if (!fecha || !c) return;
-    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [] });
+    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [], cargaDedos: false });
     d.dedos += c.dedos; d.cuerpo += c.cuerpo; d.sistemico += c.sistemico;
     if (c.pico > d.pico) d.pico = c.pico;
+    if (c.cargaDedos) d.cargaDedos = true;
     if (c.origen && !d.origen.includes(c.origen)) d.origen.push(c.origen);
   };
 
