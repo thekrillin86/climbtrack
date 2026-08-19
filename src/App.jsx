@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine } from "recharts";
-import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes } from "./lib.js";
+import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg, rpeMax, calcFL, calcBanister, tendonAlert, calcReadiness, parseRow, backupStatus, markBackup, lastEdge, edgeSizes, CAMPOS_JSON } from "./lib.js";
 import { ejecutarMigraciones } from './migrations.js';
 import { PantallaFallo, confirmarSobrescritura } from './seguridad.jsx';
 import NubeP from './NubeP.jsx';
@@ -80,7 +80,9 @@ export default function App(){
     for(const[n,d]of Object.entries(sheets)){if(!d.length)continue;csv+=`\n=== ${n} ===\n`;
       const ks=[...new Set(d.flatMap(r=>Object.keys(r)))];csv+=ks.join(',')+'\n';
       d.forEach(r=>{csv+=ks.map(k=>{let v=r[k];if(v==null)return'';if(k==='intentos_rpe'&&Array.isArray(v))v=rpeStr(v);
-        if(['bloques','curva','intensidades','series_data','contractions','agarres'].includes(k)&&Array.isArray(v))v=JSON.stringify(v);
+        // typeof 'object' cubre arrays Y objetos. Con Array.isArray, `suunto`
+        // se escapaba y salia como el texto "[object Object]".
+        if(CAMPOS_JSON.includes(k)&&typeof v==='object')v=JSON.stringify(v);
         const x=String(v);return x.includes(',')||x.includes('"')||x.includes('\n')?`"${x.replace(/"/g,'""')}"`:x}).join(',')+'\n'})}
     const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`climbtrack_v6_${td()}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),30000);
     if(window.confirm('¿Se ha descargado el fichero correctamente?\n\nPulsa Aceptar solo si lo ves en Descargas. Si no, Cancelar y el aviso de copia seguirá activo.')){await markBackup();setBkp(await backupStatus())}
@@ -125,8 +127,11 @@ function InitP({onInit}){const[st,setSt]=useState('ready');const ref=useRef(null
       for(let i=0;i<sec.length;i++){const k=km[sec[i]?.trim()];if(!k)continue;const csv=sec[i+1]?.trim();if(!csv)continue;
         const ls=csv.split('\n').filter(l=>l.trim());if(ls.length<2)continue;const h=parseRow(ls[0]);
         for(let j=1;j<ls.length;j++){const v=parseRow(ls[j]);const o={};h.forEach((x,idx)=>{o[x.trim()]=v[idx]||''});
-          ['bloques','curva','intensidades','series_data','contractions','agarres'].forEach(f=>{if(!o[f]||typeof o[f]!=='string')return;const s=o[f].trim();
-            if(s.startsWith('[')||s.startsWith('"[')){try{o[f]=JSON.parse(s.replace(/^"+|"+$/g,''))}catch{}}
+          CAMPOS_JSON.forEach(f=>{if(!o[f]||typeof o[f]!=='string')return;const s=o[f].trim();
+            // Copias antiguas traen "[object Object]" donde deberia ir el JSON.
+            // Se descarta: mejor un hueco declarado que un dato falso (CLAUDE.md 6).
+            if(s==='[object Object]'){o[f]='';return}
+            if(/^"?[[{]/.test(s)){try{o[f]=JSON.parse(s.replace(/^"+|"+$/g,''))}catch{}}
             else if(f==='agarres')o[f]=s.split(',').map(x=>x.trim()).filter(Boolean)});
           if(o.intentos_rpe)o.intentos_rpe=pRpe(o.intentos_rpe);sd[k].push(o)}}
       const total=Object.values(sd).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0);if(total<=1)throw new Error('El fichero no contiene datos reconocibles. Comprueba que es el CSV exportado por ClimbTrack y no otro.');const ok=await onInit(sd);setSt(ok?'done':'ready')}catch(err){console.error(err);setSt('error:'+(err?.message||err))}};

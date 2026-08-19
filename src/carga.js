@@ -88,6 +88,16 @@ export const PARAMS = {
   // Si tocas los coeficientes de canal de catalogo.js, estos tres numeros
   // hay que volver a medirlos.
   escalaActividad: { dedos: 1.00, cuerpo: 2.92, sistemico: 3.41 },
+
+  // Escalador base de cargaPorActividad. Estaba escrito a mano como un 30 en
+  // tres sitios distintos de la función: cambiarlo en uno solo descolocaba los
+  // canales entre sí sin que nada avisara. CLAUDE.md §4 pide que no haya
+  // constantes escondidas a mitad de función.
+  escalaBase: 30,
+
+  // Duración que se asume cuando el reloj no dice nada. Es una suposición, no
+  // un dato: si el día trae minutos del Suunto se usan esos.
+  minutosPorDefecto: 60,
 };
 
 /* ------------------------------------------------------------------
@@ -232,21 +242,27 @@ export function cargaPorActividad(dia) {
   const ff = fatigaDe(dia);                        // respeta un 0 legitimo
   const i = Math.min(ff / PARAMS.escalaFatiga, 1);
   const coste = costeEsfuerzo(i);                  // fatiga NO es %MVC: sin umbral
-  const min = Number(dia?.suunto?.min) || 60;      // usa el reloj si lo hay
+  // El reloj solo cuenta si de verdad trae números. Una copia restaurada desde
+  // un CSV antiguo dejaba aquí la cadena "[object Object]", que es truthy: el
+  // día se etiquetaba 'actividad+reloj' mientras tiraba de la duración por
+  // defecto. Decía que usaba el reloj sin usarlo.
+  const s = (dia?.suunto && typeof dia.suunto === 'object') ? dia.suunto : null;
+  const minReloj = Number(s?.min) > 0 ? Number(s.min) : null;
+  const min = minReloj ?? PARAMS.minutosPorDefecto;
   const esc = PARAMS.escalaActividad;              // puente con cargaPorDetalle
   return redondear({
-    dedos:     (min / 60) * coste * coef.dedos * 30 * esc.dedos,
-    cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * 30 * esc.cuerpo,
-    sistemico: cargaSistemica(dia, coef, i, min) * esc.sistemico,
-    pico: i, porAgarre: {}, estimado: true, origen: dia?.suunto ? 'actividad+reloj' : 'actividad',
+    dedos:     (min / 60) * coste * coef.dedos * PARAMS.escalaBase * esc.dedos,
+    cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * PARAMS.escalaBase * esc.cuerpo,
+    sistemico: cargaSistemica(s, coef, i, min) * esc.sistemico,
+    pico: i, porAgarre: {}, estimado: true,
+    origen: (minReloj || Number(s?.kcal) > 0) ? 'actividad+reloj' : 'actividad',
   });
 }
 
 /** Si hay datos del Suunto se usan; si no, se estima. */
-function cargaSistemica(dia, coef, i, min) {
-  const s = dia?.suunto;
+function cargaSistemica(s, coef, i, min) {
   if (s && s.kcal > 0) return (s.kcal / 100) * (s.hr_med ? Math.min(s.hr_med / 100, 2) : 1);
-  return (min / 60) * (i ** PARAMS.exponente) * coef.sistemico * 30;
+  return (min / 60) * (i ** PARAMS.exponente) * coef.sistemico * PARAMS.escalaBase;
 }
 
 function redondear(r) {

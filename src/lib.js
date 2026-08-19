@@ -149,6 +149,15 @@ export function calcReadiness(ban,cal,t25){
 // ───────────────────────── CSV import/export
 export function parseRow(line){const r=[];let cur='',inQ=false;for(let c=0;c<line.length;c++){const ch=line[c];if(inQ){if(ch==='"'&&line[c+1]==='"'){cur+='"';c++}else if(ch==='"'){inQ=false}else{cur+=ch}}else{if(ch==='"'){inQ=true}else if(ch===','){r.push(cur);cur=''}else{cur+=ch}}}r.push(cur);return r}
 
+// ───────────────────────── CAMPOS QUE VIAJAN COMO JSON EN EL CSV
+// UNA sola lista, usada por el export y por el import. Tenerla escrita dos
+// veces ya ha costado dos bugs de perdida de datos: 'agarres' (16-08-2026) y
+// 'suunto' (19-08-2026). El de suunto ademas tenia un segundo fallo: el
+// guardia del export era Array.isArray y suunto es un OBJETO, asi que salia
+// como el texto "[object Object]" y 30 dias de datos del reloj se perdian al
+// restaurar. Si anades un campo que no sea texto plano, va aqui y solo aqui.
+export const CAMPOS_JSON = ['bloques','curva','intensidades','series_data','contractions','agarres','suunto'];
+
 // ───────────────────────── REGLETA / EDGE
 // Devuelve el último tamaño de regleta usado (mm), para no fijar ningún valor por defecto.
 // Si no hay historial, cae a 20mm (estándar de referencia en la literatura).
