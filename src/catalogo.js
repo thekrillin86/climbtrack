@@ -84,7 +84,13 @@ export function clasificar(texto) {
   const x = String(texto || '').trim().toLowerCase();
   if (!x) return null;
   if (/\b(maw|med40|ftl|fuerza m[áa]xima tindeq|test )/.test(x)) return 'SUSP_TEST';
-  if (/susp/.test(x) || x === 'rfd')                             return 'SUSP_REGLETA';
+  // `rfd` en cualquier posición, no como palabra suelta. Con `x === 'rfd'`,
+  // escribir "Rfd 10mm" —justo lo que se le pidió a Juan para que la regleta
+  // entrara en el cálculo— dejaba el ejercicio SIN_CLASIFICAR, y un ejercicio
+  // sin tipo no suma nada: `cargaPorDetalle` lo salta y además se lleva su
+  // parte de los minutos del bloque. El consejo daba 0,0 de dedos donde "Rfd"
+  // a secas daba 2,4. Comprobado el 19-08-2026.
+  if (/susp/.test(x) || /\brfd\b/.test(x))                       return 'SUSP_REGLETA';
   if (/dominad/.test(x) || /^pap/.test(x))                       return 'DOMINADA';
   if (/traves[íi]a|travesia/.test(x))                            return 'TRAVESIA';
   if (/bloque|bloc\b/.test(x))                                   return 'BLOQUE';
