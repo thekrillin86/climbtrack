@@ -115,11 +115,16 @@ export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
 ```
 
 Un bloque al 65 % es el 65 % de tu nivel **de bloque**, no el 65 % de la
-fuerza máxima de tus dedos. Su porcentaje va a `pct_max` y se lee con
-`costeEsfuerzo`, **sin umbral**. Solo las suspensiones y los tests pasan por
-`costeIntensidad`. Da igual que el histórico tenga ese número guardado en
-`pct_mvc`: `intensidadBloque` lee los dos campos y la escala la elige por
-`e.tipo`, así que no hay nada que migrar.
+fuerza máxima de tus dedos. Su porcentaje va a `pct_max`. Da igual que el
+histórico tenga ese número guardado en `pct_mvc`: `intensidadBloque` lee los
+dos campos y la escala la elige por `e.tipo`, así que no hay nada que migrar.
+
+**La curva del umbral (`costeIntensidad`) se aplica SOLO a los tipos de
+`MVC_DEDOS`.** Todo lo demás va por `costeEsfuerzo`. Durante un tiempo la
+regla fue «lo que no esté en `ESCALA_ESFUERZO`», y por ahí se colaban la
+dominada, el gimnasio, el core y el hombro: un press de banca al 85 % es el
+85 % de su máximo de banca, y una dominada al 80 % el 80 % de su máximo de
+dominada. Ninguno de los dos es fuerza de dedos.
 
 Este error se ha cometido ya **tres veces**: aplicando el umbral a un RPE;
 aplicándolo al % de un bloque (un bloque al 65 % desaparecía); y sacando los
@@ -213,10 +218,15 @@ Verificado contra su hoja al decimal en los cinco puntos que ella tabula.
 asistencia para todo lo que baje del 80 %. Si el texto habla de goma o polea
 sin signo, no se adivina — se deja sin dato y el ejercicio queda estimado.
 
-Cada ejercicio lleva su `procedencia`: `anotado` (él escribió el %),
+Cada suspensión lleva su `procedencia`: `anotado` (él escribió el %),
 `calculado` (sale del perfil) o `estimado` (no había con qué). La pestaña
-Carga lo dice en pantalla. En su histórico: 84 % anotado, 7 % calculado, 9 %
-estimado.
+Carga lo dice en pantalla. En su histórico, de **34 suspensiones y tests**:
+**10 anotadas, 10 calculadas, 14 estimadas**.
+
+**Se cuentan solo los tipos de `MVC_DEDOS`.** Contar los 11 tipos mezcla el
+RPE de una sentadilla con el 90 % de una suspensión: la pantalla llegó a decir
+«129 anotadas» cuando eran 10, y esta misma sección llegó a decir «84 %
+anotado». Lo pilló una revisión adversarial, no el compilador.
 
 **Ojo con la extrapolación:** el ajuste por milímetro es una recta y su hoja
 solo la tabula alrededor de la regleta de referencia. Más allá de

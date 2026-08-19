@@ -10,8 +10,8 @@ import { td } from './lib.js';
 
 const C = { dedos:'#E8A838', ok:'#6B9F4A', med:'#E8A838', mal:'#D4563A', txt:'#B8A88F', sec:'#8B7D6B', ter:'#5E5445' };
 
-export default function CiclosP({ cal = [], ent = [] }) {
-  const ciclos = useMemo(() => analizarCiclos(cal, ent), [cal, ent]);
+export default function CiclosP({ cal = [], ent = [], tests = [] }) {
+  const ciclos = useMemo(() => analizarCiclos(cal, ent, tests), [cal, ent, tests]);
   const act    = useMemo(() => cicloActual(ciclos, td()), [ciclos]);
   const avisos = useMemo(() => revisarCiclos(ciclos), [ciclos]);
   const maxD   = useMemo(() => Math.max(1, ...ciclos.map(c => c.dedosSemana)), [ciclos]);

@@ -127,6 +127,12 @@ export const PARAMS = {
   // un dato: si el día trae minutos del Suunto se usan esos.
   minutosPorDefecto: 60,
 
+  // Rango de cordura del OT que se lee de ct5_tests, en tanto por ciento.
+  // El campo es texto libre: teclear 0,65 en vez de 65 pasaba el guardián de
+  // costeIntensidad (0 < u < 1) y le cambiaba de escala todo el histórico de
+  // suspensiones sin que nada avisara. Fuera de rango se ignora y se dice.
+  rangoOT: [40, 90],
+
   // A partir de qué coeficiente de canal se considera que un ejercicio (o una
   // actividad) carga los dedos DE VERDAD. Decide dos cosas: qué días cuentan
   // para la ventana tendinosa y qué ejercicios entran en el reparto por
@@ -187,31 +193,58 @@ const pos = v => { const n = Number(v); return (Number.isFinite(n) && n > 0) ? n
  * test anterior con lo mínimo (peso, fuerza máxima y regleta de referencia):
  * entonces el modelo estima y lo dice, en vez de rellenar el hueco.
  */
+const ES_ISO = /^\d{4}-\d{2}(-\d{2})?$/;
+
 export function perfilEnFecha(tests, fechaISO) {
+  // Sin fecha válida no se elige perfil. Antes, una fecha vacía o rota dejaba
+  // pasar el filtro y ganaba el test más nuevo, incluso uno del futuro.
+  if (!fechaISO || !ES_ISO.test(String(fechaISO))) return null;
   const previos = (tests || [])
-    .filter(t => t && t.fecha && (!fechaISO || String(t.fecha) <= String(fechaISO)))
+    .filter(t => t && ES_ISO.test(String(t.fecha || '')) && String(t.fecha) <= String(fechaISO))
     .sort((a, b) => (String(a.fecha) < String(b.fecha) ? 1 : -1));   // más reciente primero
   if (!previos.length) return null;
 
+  // Respaldo por campo, devolviendo TAMBIÉN de qué test sale cada uno: la
+  // pantalla presentaba los cuatro números como si fueran del mismo test
+  // cuando el umbral venía de seis meses antes.
   const campo = (...nombres) => {
     for (const t of previos) for (const n of nombres) {
       const v = pos(t[n]);
-      if (v !== null) return v;
+      if (v !== null) return { v, de: t.fecha };
     }
     return null;
   };
   const peso = campo('peso');
-  const regletaRef = campo('cargaRegleta', 'MED40');
-  const maw = campo('MAW5');
-  let fmaxRef = campo('fmaxRegleta');
-  if (fmaxRef === null && peso !== null && maw !== null) fmaxRef = peso + maw;
-  if (peso === null || fmaxRef === null || regletaRef === null) return null;
+  if (!peso) return null;
 
+  // `fmaxRegleta` y `cargaRegleta` son un PAR: la fuerza máxima está medida EN
+  // esa regleta. Se cogen del mismo test o no se cogen. Y se descarta el
+  // fmaxRegleta que no supere el peso corporal: TestP lo calcula como
+  // `peso + (MAW5 || 0)`, así que un test guardado sin MAW5 deja ahí el peso
+  // pelado y eso daría %MVC = 100 % en todas las suspensiones.
+  let par = null;
+  for (const t of previos) {
+    const f = pos(t.fmaxRegleta), r = pos(t.cargaRegleta) ?? pos(t.MED40);
+    const m = pos(t.MAW5);
+    const fEfectiva = (f !== null && f > pos(t.peso ?? peso.v)) ? f
+                    : (m !== null && pos(t.peso) !== null) ? pos(t.peso) + m : null;
+    if (fEfectiva !== null && r !== null) { par = { fmaxRef: fEfectiva, regletaRef: r, de: t.fecha }; break; }
+  }
+  if (!par) return null;
+
+  // El OT en tanto por ciento. Fuera de un rango de cordura se ignora: teclear
+  // 0,65 en vez de 65 pasaba el guardián y le cambiaba de escala todo el
+  // histórico de suspensiones.
   const ot = campo('OT');
+  const otOk = ot && ot.v >= PARAMS.rangoOT[0] && ot.v <= PARAMS.rangoOT[1];
+
   return {
     fecha: previos[0].fecha,
-    peso, fmaxRef, regletaRef,
-    umbralOclusion: ot !== null ? ot / 100 : null,
+    peso: peso.v, pesoDe: peso.de,
+    fmaxRef: par.fmaxRef, regletaRef: par.regletaRef, fuerzaDe: par.de,
+    umbralOclusion: otOk ? ot.v / 100 : null,
+    umbralDe: otOk ? ot.de : null,
+    otFueraDeRango: !!(ot && !otOk),
   };
 }
 
@@ -236,8 +269,11 @@ export function pctMVCSuspension(perfil, regletaMm, lastreKg) {
   if (!(factor > 0)) return null;
   const fmax = perfil.fmaxRef * factor;
   if (!(fmax > 0)) return null;
+  // Asistencia igual o mayor que su peso: no está colgando de nada. Es 0, no
+  // "no se puede calcular" — devolver null caía en el 75 % por defecto, que es
+  // inventarse un dato justo en la dirección peligrosa.
   const carga = perfil.peso + l;
-  if (!(carga > 0)) return null;
+  if (carga <= 0) return { pct: 0, fuera: false };
   return { pct: carga / fmax, fuera: Math.abs(mm - perfil.regletaRef) > PARAMS.margenRegletaMm };
 }
 
@@ -272,7 +308,11 @@ function intensidadBloque(bloque, ejercicio, perfil) {
   if (pct > 0) {
     return {
       i: Math.min(pct / 100, 1),
-      escala: ESCALA_ESFUERZO.has(ejercicio?.tipo) ? 'esfuerzo' : 'mvc',
+      // La curva del umbral SOLO para los tipos cuyo % es fuerza de dedos.
+      // Antes bastaba con no estar en ESCALA_ESFUERZO, y por ahí se colaban la
+      // dominada, el gimnasio, el core y el hombro: un press de banca al 85 %
+      // es el 85 % de su máximo de banca, no de la fuerza de sus dedos.
+      escala: MVC_DEDOS.has(ejercicio?.tipo) ? 'mvc' : 'esfuerzo',
       procedencia: 'anotado',
     };
   }
@@ -295,7 +335,9 @@ function intensidadBloque(bloque, ejercicio, perfil) {
     return { i: PARAMS.pctSuspPorDefecto / 100, escala: 'mvc', procedencia: 'estimado' };
   }
 
-  return { i: rpeFraccion(bloque), escala: 'rpe', procedencia: 'anotado' };
+  // 'rpe', no 'anotado': el porcentaje no lo ha escrito él, sale del esfuerzo
+  // percibido del bloque. Llamarlo anotado hinchaba el recuento de la pantalla.
+  return { i: rpeFraccion(bloque), escala: 'rpe', procedencia: 'rpe' };
 }
 
 /** Aplica la curva que toque según de dónde venga la intensidad. */
@@ -316,15 +358,17 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
   let hayDetalle = false;
   const r = {
     dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {}, cargaDedos: false,
-    // De dónde sale la intensidad de cada ejercicio, para que la pantalla lo
-    // pueda decir en vez de dar un número a secas (CLAUDE.md §6).
+    // De dónde sale la intensidad, SOLO de las suspensiones y los tests: son
+    // los únicos donde el número es %MVC de dedos y donde tiene sentido
+    // distinguir anotado de calculado. Contar los 11 tipos mezclaba el RPE de
+    // una sentadilla con el 90 % de una suspensión y la pantalla llegó a decir
+    // "129 anotadas" cuando eran 10.
     procedencia: { anotado: 0, calculado: 0, estimado: 0 },
     // Minutos de trabajo de dedos que quedan POR DEBAJO de su umbral de
     // oclusión y por tanto no acumulan nada. No es un fallo: es lo que dice
     // el modelo de su entrenador. Pero si no se cuenta, un bloque entero
     // desaparece en silencio.
     minSubUmbral: 0,
-    perfilFecha: perfil?.fecha ?? null,
   };
 
   for (const b of bloques) {
@@ -359,8 +403,11 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
       r.cuerpo    += cuota * esf   * (t.cuerpo ?? 0);
       r.sistemico += cuota * esf   * (t.sist   ?? 0);
       if (x.i > r.pico) r.pico = x.i;
-      if (x.procedencia) r.procedencia[x.procedencia]++;
-      if (x.procedencia !== 'anotado') r.estimado = true;
+      if (MVC_DEDOS.has(e.tipo) && r.procedencia[x.procedencia] !== undefined) {
+        r.procedencia[x.procedencia]++;
+        if (x.superaFmax) r.superaFmax = true;
+      }
+      if (x.procedencia === 'estimado') r.estimado = true;
       // Trabajo de dedos que se queda por debajo del umbral y no acumula.
       if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos && x.escala === 'mvc' && coste === 0) {
         r.minSubUmbral += cuota;

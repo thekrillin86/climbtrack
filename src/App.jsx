@@ -109,7 +109,7 @@ export default function App(){
       {page==='peso'&&<PesoP data={dp} save={d=>s('ct5_dp',d,setDp)}/>}
       {page==='test'&&<TestP tests={tests} save={d=>s('ct5_tests',d,setTests)}/>}
       {page==='carga'&&<CargaP cal={cal} ent={ent} roca={roca} tests={tests}/>}
-      {page==='ciclos'&&<CiclosP cal={cal} ent={ent}/>}
+      {page==='ciclos'&&<CiclosP cal={cal} ent={ent} tests={tests}/>}
       {page==='nube'&&<NubeP onRestaurar={restaurarDeNube}/>}
       {page==='stats'&&<StP cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg}/>}
     </main>
@@ -421,8 +421,16 @@ function TestP({tests,save}){
   const sorted=useMemo(()=>[...tests].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[tests]);
   const latest=sorted[0]||DT;
   const sC=(i,v)=>{const cu=[...form.curva];cu[i]={...cu[i],t:v};setForm({...form,curva:cu})};
-  const sub=()=>{const p=Number(form.peso)||83,m=Number(form.MAW5)||0,fx=p+m;
-    const e={...form,fmaxRegleta:fx,cargaRegleta:Number(form.MED40)||''};
+  const sub=()=>{const p=Number(form.peso)||83,m=Number(form.MAW5)||0;
+    // Sin MAW5 no hay fuerza maxima: antes se guardaba `peso + 0`, o sea el peso
+    // pelado, y el modelo de carga lo leia como Fmax -> 100 % de MVC en TODAS
+    // las suspensiones, marcadas ademas como "calculado". Mejor vacio.
+    const fx=m>0?p+m:'';
+    // La fecha se normaliza a AAAA-MM: escribir "2026-8" dejaba el test visible
+    // en esta pestana pero invisible para el modelo de carga, que compara
+    // fechas como texto.
+    const fn=String(form.fecha||'').trim().replace(/^(\d{4})-(\d)$/,'$1-0$2');
+    const e={...form,fecha:fn,fmaxRegleta:fx,cargaRegleta:Number(form.MED40)||''};
     if(eid)save(tests.map(t=>t.id===eid?{...t,...e,id:eid}:t));else save([...tests,{...e,id:xi()}]);
     setShow(false);setEid(null);setForm(bl)};
   const edit=t=>{setForm({...bl,...t,curva:Array.isArray(t.curva)&&t.curva.length?t.curva:bl.curva});setEid(t.id);setShow(true)};

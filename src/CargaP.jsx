@@ -77,17 +77,19 @@ export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
   // un %MVC calculado desde un perfil no es lo mismo que uno anotado a mano,
   // y la pantalla tiene que poder decirlo.
   const perfil = useMemo(() => perfilEnFecha(tests, hoy), [tests, hoy]);
-  const procDetalle = useMemo(() => {
-    const acc = { anotado: 0, calculado: 0, estimado: 0 };
-    let hay = false;
+  const susp = useMemo(() => {
+    const acc = { anotado: 0, calculado: 0, estimado: 0, subUmbral: 0, superaFmax: 0 };
     for (const s of ent) {
       const c = cargaPorDetalle(s, perfilEnFecha(tests, s.fecha));
       if (!c?.procedencia) continue;
-      hay = true;
-      for (const k of Object.keys(acc)) acc[k] += c.procedencia[k] || 0;
+      for (const k of ['anotado', 'calculado', 'estimado']) acc[k] += c.procedencia[k] || 0;
+      acc.subUmbral += c.minSubUmbral || 0;
+      if (c.superaFmax) acc.superaFmax++;
     }
-    return hay ? acc : null;
+    acc.total = acc.anotado + acc.calculado + acc.estimado;
+    return acc;
   }, [ent, tests]);
+  const fech = f => String(f || '').split('-').reverse().join('/');
 
   return (
     <div className="page">
@@ -221,26 +223,47 @@ export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
             <span>{v} días</span>
           </div>
         ))}
-        {perfil && (
-          <div style={{ fontSize: 11, color: '#8B7D6B', marginTop: 10, lineHeight: 1.5,
-                        borderTop: '1px solid #33291F', paddingTop: 10 }}>
-            Tu perfil de fuerza vigente es el test del <b>{String(perfil.fecha).split('-').reverse().join('/')}</b>:
-            {' '}{perfil.peso} kg, máximo {perfil.fmaxRef} kg en regleta de {perfil.regletaRef} mm,
-            umbral de oclusión <b>{Math.round(perfil.umbralOclusion * 100)} %</b>.
-            Se lee de la pestaña Tests, así que se actualiza solo cuando registras uno nuevo.
-          </div>
-        )}
-        <div style={{ fontSize: 11, color: '#5E5445', marginTop: 10, lineHeight: 1.45 }}>
-          La intensidad de una suspensión sale, por este orden: del porcentaje que hayas
-          escrito; si no, <b>calculada</b> con el tamaño de regleta, el lastre y tu perfil;
-          y si tampoco hay regleta, estimada al {PARAMS.pctSuspPorDefecto} %.
-          {procDetalle && <> En tu histórico son {procDetalle.anotado} anotadas,
-            {' '}{procDetalle.calculado} calculadas y {procDetalle.estimado} estimadas.</>}
-          {!perfil && <> Ahora mismo no hay ningún test anterior, así que todo se estima.</>}
+        <div style={{ fontSize: 11, color: '#8B7D6B', marginTop: 10, lineHeight: 1.5,
+                      borderTop: '1px solid #33291F', paddingTop: 10 }}>
+          {perfil ? (
+            <>
+              Tu perfil de fuerza sale de la pestaña Tests. Peso <b>{perfil.peso} kg</b> y
+              máximo <b>{perfil.fmaxRef} kg</b> en regleta de <b>{perfil.regletaRef} mm</b>,
+              del test de {fech(perfil.fuerzaDe)}. Umbral de oclusión{' '}
+              {perfil.umbralOclusion ? (
+                <>
+                  <b>{Math.round(perfil.umbralOclusion * 100)} %</b>
+                  {perfil.umbralDe !== perfil.fuerzaDe && <>, del test de {fech(perfil.umbralDe)}</>}
+                </>
+              ) : (
+                <>
+                  <b>{Math.round(PARAMS.umbralOclusion * 100)} %</b> — que no es tuyo: es la media
+                  de un estudio, porque no tienes el OT rellenado en ningún test
+                  {perfil.otFueraDeRango && <> (el que hay está fuera del rango {PARAMS.rangoOT[0]}–{PARAMS.rangoOT[1]} % y se ignora)</>}
+                </>
+              )}.
+            </>
+          ) : (
+            <>No hay ningún test anterior a hoy en la pestaña Tests, así que la intensidad de
+              todas las suspensiones se estima y el umbral es el de un estudio, no el tuyo.</>
+          )}
         </div>
         <div style={{ fontSize: 11, color: '#5E5445', marginTop: 8, lineHeight: 1.45 }}>
-          Por debajo de tu umbral no acumula: es trabajo sub-oclusivo y el modelo le da
-          cero. Exponente {PARAMS.exponente} · τ dedos {PARAMS.tau.dedos} d.
+          La intensidad de una <b>suspensión</b> sale, por este orden: del porcentaje que
+          hayas escrito; si no, calculada con el tamaño de regleta, el lastre y tu perfil;
+          y si tampoco hay regleta, estimada al {PARAMS.pctSuspPorDefecto} %.
+          {susp.total > 0 && <> De tus {susp.total} suspensiones y tests registrados,
+            {' '}<b>{susp.anotado}</b> con el % escrito, <b>{susp.calculado}</b> calculadas
+            y <b>{susp.estimado}</b> estimadas.</>}
+          {susp.superaFmax > 0 && <> En {susp.superaFmax} el cálculo pasa del 100 %: señal de que
+            el perfil se ha quedado viejo o el lastre está mal escrito.</>}
+        </div>
+        <div style={{ fontSize: 11, color: '#5E5445', marginTop: 8, lineHeight: 1.45 }}>
+          Por debajo de tu umbral no acumula nada: es trabajo sub-oclusivo y el modelo le
+          da cero.
+          {susp.subUmbral > 0 && <> En tu histórico son <b>{Math.round(susp.subUmbral)} minutos</b> de
+            dedos que no suman — casi todo suspensiones prescritas justo en el umbral.</>}
+          {' '}Exponente {PARAMS.exponente} · τ dedos {PARAMS.tau.dedos} d.
           Todo eso se cambia en carga.js.
         </div>
       </div>
