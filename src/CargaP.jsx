@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { seriesCarga, fatigaAcumulada, PARAMS } from './carga.js';
+import { seriesCarga, fatigaAcumulada, perfilEnFecha, cargaPorDetalle, PARAMS } from './carga.js';
 import { AGARRE_POR_ID, repartoAgarres, viasPorAgarre } from './agarres.js';
 import { td } from './lib.js';
 
@@ -25,8 +25,8 @@ function diasAtras(n) {
   return out;
 }
 
-export default function CargaP({ cal = [], ent = [], roca = [] }) {
-  const ser = useMemo(() => seriesCarga(cal, ent), [cal, ent]);
+export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
+  const ser = useMemo(() => seriesCarga(cal, ent, tests), [cal, ent, tests]);
   const hoy = td();
   const fat = useMemo(() => fatigaAcumulada(ser, hoy), [ser, hoy]);
   const dias = useMemo(() => diasAtras(21), []);
@@ -71,6 +71,23 @@ export default function CargaP({ cal = [], ent = [], roca = [] }) {
     }
     return acc;
   }, [ser, dias]);
+
+  // Perfil de fuerza vigente hoy y de dónde sale la intensidad de cada
+  // ejercicio. Las dos cosas son para la tarjeta "De dónde sale cada número":
+  // un %MVC calculado desde un perfil no es lo mismo que uno anotado a mano,
+  // y la pantalla tiene que poder decirlo.
+  const perfil = useMemo(() => perfilEnFecha(tests, hoy), [tests, hoy]);
+  const procDetalle = useMemo(() => {
+    const acc = { anotado: 0, calculado: 0, estimado: 0 };
+    let hay = false;
+    for (const s of ent) {
+      const c = cargaPorDetalle(s, perfilEnFecha(tests, s.fecha));
+      if (!c?.procedencia) continue;
+      hay = true;
+      for (const k of Object.keys(acc)) acc[k] += c.procedencia[k] || 0;
+    }
+    return hay ? acc : null;
+  }, [ent, tests]);
 
   return (
     <div className="page">
@@ -204,9 +221,26 @@ export default function CargaP({ cal = [], ent = [], roca = [] }) {
             <span>{v} días</span>
           </div>
         ))}
+        {perfil && (
+          <div style={{ fontSize: 11, color: '#8B7D6B', marginTop: 10, lineHeight: 1.5,
+                        borderTop: '1px solid #33291F', paddingTop: 10 }}>
+            Tu perfil de fuerza vigente es el test del <b>{String(perfil.fecha).split('-').reverse().join('/')}</b>:
+            {' '}{perfil.peso} kg, máximo {perfil.fmaxRef} kg en regleta de {perfil.regletaRef} mm,
+            umbral de oclusión <b>{Math.round(perfil.umbralOclusion * 100)} %</b>.
+            Se lee de la pestaña Tests, así que se actualiza solo cuando registras uno nuevo.
+          </div>
+        )}
         <div style={{ fontSize: 11, color: '#5E5445', marginTop: 10, lineHeight: 1.45 }}>
-          Umbral de oclusión {Math.round(PARAMS.umbralOclusion * 100)} % · exponente {PARAMS.exponente} ·
-          suspensión sin porcentaje anotado se asume al {PARAMS.pctSuspPorDefecto} %.
+          La intensidad de una suspensión sale, por este orden: del porcentaje que hayas
+          escrito; si no, <b>calculada</b> con el tamaño de regleta, el lastre y tu perfil;
+          y si tampoco hay regleta, estimada al {PARAMS.pctSuspPorDefecto} %.
+          {procDetalle && <> En tu histórico son {procDetalle.anotado} anotadas,
+            {' '}{procDetalle.calculado} calculadas y {procDetalle.estimado} estimadas.</>}
+          {!perfil && <> Ahora mismo no hay ningún test anterior, así que todo se estima.</>}
+        </div>
+        <div style={{ fontSize: 11, color: '#5E5445', marginTop: 8, lineHeight: 1.45 }}>
+          Por debajo de tu umbral no acumula: es trabajo sub-oclusivo y el modelo le da
+          cero. Exponente {PARAMS.exponente} · τ dedos {PARAMS.tau.dedos} d.
           Todo eso se cambia en carga.js.
         </div>
       </div>

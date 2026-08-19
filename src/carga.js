@@ -18,18 +18,37 @@
  * Todos los coeficientes están aquí arriba, a la vista, para que los toques.
  */
 
-import { TIPO_POR_ID, ejerciciosDeBloque, ESCALA_ESFUERZO } from './catalogo.js';
+import { TIPO_POR_ID, ejerciciosDeBloque, ESCALA_ESFUERZO, MVC_DEDOS } from './catalogo.js';
 import { AGARRE_POR_ID, agarreDe } from './agarres.js';
 
 /* ------------------------------------------------------------------
    PARÁMETROS — todos editables, ninguno es sagrado
    ------------------------------------------------------------------ */
 export const PARAMS = {
-  // Umbral de oclusión de los flexores, en fracción de la fuerza máxima.
-  // 65,6 % es la media medida por Bergua et al. (2021) en 34 escaladores.
-  // El rango individual va del 45 % al 75 %: si algún día lo mides con tu
-  // Tindeq (calcCFW ya lo calcula), pon aquí TU número.
+  // Umbral de oclusión de RESPALDO, en fracción de la fuerza máxima.
+  // 65,6 % es la media medida por Bergua et al. (2021) en 34 escaladores, con
+  // rango individual del 45 % al 75 %.
+  //
+  // ESTO ES SOLO EL RESPALDO. El umbral de Juan está medido y guardado en su
+  // pestaña Tests (`ct5_tests`, campo `OT`), y vale 65 %. Se lee con
+  // `perfilEnFecha()` y manda sobre este número. Este valor solo se usa si no
+  // hay ningún test anterior a la fecha de la sesión.
   umbralOclusion: 0.656,
+
+  // Escala del RPE. Estaba escrita como un /10 a mano en dos sitios distintos.
+  escalaRpe: 10,
+
+  // Corrección de fuerza máxima por milímetro de canto, en fracción.
+  // Sale del modelo de su entrenador (hoja "06 Cálculo de carga en regleta de
+  // entrenamiento", M2 2026): con la regleta de referencia a 16 mm, pasar a
+  // 15 mm le resta un 1,9357 % de fuerza. Verificado contra su hoja al
+  // decimal: 103,00 kg a 16 mm dan 101,01 kg a 15 mm.
+  //
+  // OJO: es una recta, y su hoja solo la tabula alrededor de la regleta de
+  // referencia. Extrapolar 10 mm arriba o abajo es una suposición, no un dato,
+  // y por eso `margenRegletaMm` marca esos casos como estimados.
+  ajusteFuerzaPorMm: 0.019357,
+  margenRegletaMm: 5,
 
   // Exponente de intensidad. Con 2, doblar la intensidad multiplica por 4
   // la carga. Es lo que hace que una sesión suave y larga no puntúe como
@@ -39,8 +58,9 @@ export const PARAMS = {
   // Cuando no hay % de intensidad anotado, se estima desde el RPE.
   rpePorDefecto: 5,
 
-  // %MVC por defecto de una suspensión sin porcentaje anotado. Tus repeaters
-  // documentados van al 75 %. Cámbialo si tu protocolo habitual es otro.
+  // %MVC de una suspensión de la que no se puede calcular nada: ni porcentaje
+  // escrito, ni tamaño de regleta, ni perfil de fuerza en esa fecha. Es el
+  // último recurso y el ejercicio queda marcado como estimado.
   pctSuspPorDefecto: 75,
 
   // Escala de la fatiga percibida del calendario.
@@ -80,14 +100,22 @@ export const PARAMS = {
   // sistemico si rellenabas los bloques que si ponias solo la actividad.
   // Rellenar el formulario te castigaba.
   //
-  // Estos tres numeros son la mediana de detalle/actividad en los 30 dias
-  // del historico que tienen los dos calculos, medida el 17-08-2026 y ya
-  // con la escala de esfuerzo del cambio anterior aplicada. Dedos sale
-  // 1,00: ese canal cuadraba solo.
+  // Mediana de detalle/actividad en los 31 días del histórico que tienen los
+  // dos cálculos. Re-medida el 19-08-2026, ya con el `suunto` recuperado y con
+  // las suspensiones calculadas desde su perfil de fuerza. Antes valía
+  // {1,00 · 2,92 · 3,41}, medido cuando el motor de detalle aplastaba las
+  // suspensiones y el CSV había perdido las duraciones del reloj.
   //
-  // Si tocas los coeficientes de canal de catalogo.js, estos tres numeros
-  // hay que volver a medirlos.
-  escalaActividad: { dedos: 1.00, cuerpo: 2.92, sistemico: 3.41 },
+  // Si se tocan los coeficientes de canal de catalogo.js, o el modelo de
+  // suspensiones, estos tres números hay que volver a medirlos.
+  //
+  // LO QUE ESTE NÚMERO NO RESUELVE: los días CON reloj y los días SIN reloj se
+  // comportan distinto frente al puente —medido, 0,35 contra 1,60 en dedos—
+  // porque cargaPorActividad escala con la duración y el puente se midió casi
+  // todo sobre días que usan los 60 minutos por defecto. Con solo 3 días que
+  // tengan detalle Y reloj a la vez no se puede calibrar la otra rama sin
+  // inventarse el número. Hace falta más histórico.
+  escalaActividad: { dedos: 1.33, cuerpo: 2.09, sistemico: 2.19 },
 
   // Escalador base de cargaPorActividad. Estaba escrito a mano como un 30 en
   // tres sitios distintos de la función: cambiarlo en uno solo descolocaba los
@@ -116,12 +144,101 @@ export const PARAMS = {
    Intensidad → coste, con el umbral de oclusión
    Por debajo del umbral el flujo sanguíneo está restaurado: no acumula.
    ------------------------------------------------------------------ */
-export function costeIntensidad(fraccion) {
+export function costeIntensidad(fraccion, umbral) {
   const i = Number(fraccion);
   if (!(i > 0)) return 0;
-  const u = PARAMS.umbralOclusion;
+  // El umbral de Juan si lo tenemos; si no, la media poblacional de respaldo.
+  const u = (Number.isFinite(umbral) && umbral > 0 && umbral < 1) ? umbral : PARAMS.umbralOclusion;
   if (i <= u) return 0;
   return Math.pow((i - u) / (1 - u), PARAMS.exponente);
+}
+
+/** Fracción de RPE de un bloque. Un 0 anotado es un 0, no un "no hay dato". */
+export function rpeFraccion(bloque) {
+  const r = Number(bloque?.rpe);
+  const v = (Number.isFinite(r) && r >= 0) ? r : PARAMS.rpePorDefecto;
+  return Math.min(v / PARAMS.escalaRpe, 1);
+}
+
+/* ------------------------------------------------------------------
+   PERFIL DE FUERZA · sale de `ct5_tests`, la pestaña Tests de la app
+
+   Juan ya mantiene ahí su perfil —peso, MED40, MAW5, OT, CF y su curva
+   individual de tiempo al fallo— con un formulario para actualizarlo. Hasta
+   hoy el modelo de carga NO lo leía: usaba un umbral de un paper y asumía un
+   75 % fijo para cualquier suspensión. Su perfil era decorativo.
+
+   Dos reglas:
+
+   1. Se usa el test vigente EN LA FECHA de la sesión, no el último. Una
+      sesión de mayo se puntúa con la forma que tenía en mayo, no con la de
+      agosto. Sus números se mueven de verdad: entre enero y julio de 2026
+      bajó de 83 a 80 kg, el MED40 de 16 a 15 mm y subió el MAW5 de 20 a
+      27 kg.
+   2. El respaldo es POR CAMPO, no por registro. Su test del 28-07 no tiene
+      el OT rellenado porque no se re-testeó, así que ese campo sigue
+      valiendo el 65 % de enero mientras el resto viene de julio.
+   ------------------------------------------------------------------ */
+
+const pos = v => { const n = Number(v); return (Number.isFinite(n) && n > 0) ? n : null; };
+
+/**
+ * Perfil de fuerza vigente en `fechaISO`. Devuelve `null` si no hay ningún
+ * test anterior con lo mínimo (peso, fuerza máxima y regleta de referencia):
+ * entonces el modelo estima y lo dice, en vez de rellenar el hueco.
+ */
+export function perfilEnFecha(tests, fechaISO) {
+  const previos = (tests || [])
+    .filter(t => t && t.fecha && (!fechaISO || String(t.fecha) <= String(fechaISO)))
+    .sort((a, b) => (String(a.fecha) < String(b.fecha) ? 1 : -1));   // más reciente primero
+  if (!previos.length) return null;
+
+  const campo = (...nombres) => {
+    for (const t of previos) for (const n of nombres) {
+      const v = pos(t[n]);
+      if (v !== null) return v;
+    }
+    return null;
+  };
+  const peso = campo('peso');
+  const regletaRef = campo('cargaRegleta', 'MED40');
+  const maw = campo('MAW5');
+  let fmaxRef = campo('fmaxRegleta');
+  if (fmaxRef === null && peso !== null && maw !== null) fmaxRef = peso + maw;
+  if (peso === null || fmaxRef === null || regletaRef === null) return null;
+
+  const ot = campo('OT');
+  return {
+    fecha: previos[0].fecha,
+    peso, fmaxRef, regletaRef,
+    umbralOclusion: ot !== null ? ot / 100 : null,
+  };
+}
+
+/**
+ * %MVC real de una suspensión, con el modelo de su entrenador:
+ *
+ *   Fmáx(mm) = fmaxRef × (1 − ajusteFuerzaPorMm × (regletaRef − mm))
+ *   %MVC     = (peso + lastre) / Fmáx(mm)
+ *
+ * Devuelve `{ pct, fuera }` o `null` si falta algún dato. `fuera` avisa de que
+ * la regleta está lejos de la de referencia y la recta es extrapolación.
+ * Un lastre negativo es válido: su entrenador prescribe polea o goma para
+ * bajar del 80 %.
+ */
+export function pctMVCSuspension(perfil, regletaMm, lastreKg) {
+  if (!perfil) return null;
+  const mm = Number(regletaMm);
+  if (!Number.isFinite(mm) || mm <= 0) return null;
+  const l = (lastreKg === undefined || lastreKg === null || lastreKg === '') ? 0 : Number(lastreKg);
+  if (!Number.isFinite(l)) return null;
+  const factor = 1 - PARAMS.ajusteFuerzaPorMm * (perfil.regletaRef - mm);
+  if (!(factor > 0)) return null;
+  const fmax = perfil.fmaxRef * factor;
+  if (!(fmax > 0)) return null;
+  const carga = perfil.peso + l;
+  if (!(carga > 0)) return null;
+  return { pct: carga / fmax, fuera: Math.abs(mm - perfil.regletaRef) > PARAMS.margenRegletaMm };
 }
 
 /**
@@ -150,41 +267,65 @@ export function costeEsfuerzo(fraccion) {
  * Intensidad de un bloque. Devuelve además de qué escala viene, porque
  * el coste se calcula distinto según sea %MVC medido o esfuerzo percibido.
  */
-function intensidadBloque(bloque, ejercicio) {
+function intensidadBloque(bloque, ejercicio, perfil) {
   const pct = ejercicio?.params?.pct_mvc ?? ejercicio?.params?.pct_max;
   if (pct > 0) {
     return {
       i: Math.min(pct / 100, 1),
       escala: ESCALA_ESFUERZO.has(ejercicio?.tipo) ? 'esfuerzo' : 'mvc',
+      procedencia: 'anotado',
     };
   }
 
-  // suspensiones sin porcentaje: se asume el protocolo habitual
-  const t = ejercicio?.tipo;
-  if (t === 'SUSP_REGLETA' || t === 'SUSP_TEST') {
-    return { i: PARAMS.pctSuspPorDefecto / 100, escala: 'mvc_estimado' };
+  if (MVC_DEDOS.has(ejercicio?.tipo)) {
+    // Sin porcentaje escrito se CALCULA con el tamaño de regleta, el lastre y
+    // el perfil de fuerza vigente ese día. Antes se asumía un 75 % fijo.
+    const c = pctMVCSuspension(perfil, ejercicio?.params?.regleta_mm, ejercicio?.params?.lastre_kg);
+    if (c) {
+      return {
+        i: Math.min(c.pct, 1),
+        escala: 'mvc',
+        // Es un modelo, no una medición suya: se marca como calculado. Y si la
+        // regleta queda lejos de la de referencia, o si sale por encima del
+        // 100 % —señal de que el perfil se ha quedado viejo—, es estimación.
+        procedencia: (c.fuera || c.pct > 1) ? 'estimado' : 'calculado',
+        superaFmax: c.pct > 1,
+      };
+    }
+    return { i: PARAMS.pctSuspPorDefecto / 100, escala: 'mvc', procedencia: 'estimado' };
   }
-  const rpe = Number(bloque?.rpe) || PARAMS.rpePorDefecto;
-  return { i: Math.min(rpe / 10, 1), escala: 'rpe' };
+
+  return { i: rpeFraccion(bloque), escala: 'rpe', procedencia: 'anotado' };
 }
 
 /** Aplica la curva que toque según de dónde venga la intensidad. */
-function costeSegunEscala(x) {
-  return (x.escala === 'mvc' || x.escala === 'mvc_estimado')
-    ? costeIntensidad(x.i)
+function costeSegunEscala(x, perfil) {
+  return x.escala === 'mvc'
+    ? costeIntensidad(x.i, perfil?.umbralOclusion)
     : costeEsfuerzo(x.i);
 }
 
 /* ------------------------------------------------------------------
    Carga de una sesión de entrenamiento con detalle
    ------------------------------------------------------------------ */
-export function cargaPorDetalle(sesionEnt) {
+export function cargaPorDetalle(sesionEnt, perfil = null) {
   let bloques = sesionEnt?.bloques;
   if (typeof bloques === 'string') { try { bloques = JSON.parse(bloques); } catch { return null; } }
   if (!Array.isArray(bloques) || !bloques.length) return null;
 
   let hayDetalle = false;
-  const r = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {}, cargaDedos: false };
+  const r = {
+    dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, porAgarre: {}, cargaDedos: false,
+    // De dónde sale la intensidad de cada ejercicio, para que la pantalla lo
+    // pueda decir en vez de dar un número a secas (CLAUDE.md §6).
+    procedencia: { anotado: 0, calculado: 0, estimado: 0 },
+    // Minutos de trabajo de dedos que quedan POR DEBAJO de su umbral de
+    // oclusión y por tanto no acumulan nada. No es un fallo: es lo que dice
+    // el modelo de su entrenador. Pero si no se cuenta, un bloque entero
+    // desaparece en silencio.
+    minSubUmbral: 0,
+    perfilFecha: perfil?.fecha ?? null,
+  };
 
   for (const b of bloques) {
     const ejs = ejerciciosDeBloque(b);
@@ -203,16 +344,27 @@ export function cargaPorDetalle(sesionEnt) {
     for (const e of ejs) {
       const t = TIPO_POR_ID[e.tipo];
       if (!t) continue;
-      const x = intensidadBloque(b, e);
-      const coste = costeSegunEscala(x);
-      const esf = costeEsfuerzo(x.i);
+      const x = intensidadBloque(b, e, perfil);
+      const coste = costeSegunEscala(x, perfil);
+
+      // `cuerpo` y `sistemico` NO pueden salir del mismo número que `dedos`
+      // cuando ese número es %MVC de DEDOS: el 75 % de tu fuerza máxima de
+      // dedos no es un 75 % de esfuerzo para el tronco. Se decide por TIPO
+      // (MVC_DEDOS), no por la escala: una dominada al 80 % sí es intensidad
+      // de tronco y tiene que seguir usando su propio porcentaje.
+      const esf = MVC_DEDOS.has(e.tipo) ? costeEsfuerzo(rpeFraccion(b)) : costeEsfuerzo(x.i);
       const dd = cuota * coste * (t.dedos ?? 0);
 
       r.dedos     += dd;
       r.cuerpo    += cuota * esf   * (t.cuerpo ?? 0);
       r.sistemico += cuota * esf   * (t.sist   ?? 0);
       if (x.i > r.pico) r.pico = x.i;
-      if (x.escala !== 'mvc') r.estimado = true;
+      if (x.procedencia) r.procedencia[x.procedencia]++;
+      if (x.procedencia !== 'anotado') r.estimado = true;
+      // Trabajo de dedos que se queda por debajo del umbral y no acumula.
+      if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos && x.escala === 'mvc' && coste === 0) {
+        r.minSubUmbral += cuota;
+      }
       // ¿Este día cuenta como "carga de dedos"? Se decide por el TIPO de
       // ejercicio, no por el número: un gimnasio entero da 0,2 de dedos y eso
       // no es colgarse de nada. Ver PARAMS.umbralCanalDedos.
@@ -234,6 +386,7 @@ export function cargaPorDetalle(sesionEnt) {
   }
   if (!hayDetalle) return null;
   r.origen = 'detalle';
+  r.minSubUmbral = Math.round(r.minSubUmbral);
   return redondear(r);
 }
 
@@ -292,7 +445,7 @@ function redondear(r) {
    Serie diaria de los tres canales.
    A diferencia de fingerSeries, aquí se SUMA lo del mismo día.
    ------------------------------------------------------------------ */
-export function seriesCarga(cal, ent) {
+export function seriesCarga(cal, ent, tests) {
   const porDia = {};
   const add = (fecha, c) => {
     if (!fecha || !c) return;
@@ -305,7 +458,9 @@ export function seriesCarga(cal, ent) {
 
   const conDetalle = new Set();
   for (const s of ent || []) {
-    const c = cargaPorDetalle(s);
+    // El perfil de fuerza VIGENTE ESE DÍA, no el de hoy: una sesión de mayo se
+    // puntúa con la forma que tenía en mayo.
+    const c = cargaPorDetalle(s, perfilEnFecha(tests, s.fecha));
     if (c) { add(s.fecha, c); conDetalle.add(s.fecha); }
   }
   for (const d of cal || []) {

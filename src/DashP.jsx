@@ -185,8 +185,8 @@ const TXT = {
   descanso: { t: 'Hoy toca descansar',      c: COL.mal },
 };
 
-export default function DashP({ cal = [], ent = [], t25 = [], treg = [] }) {
-  const ser  = useMemo(() => seriesCarga(cal, ent), [cal, ent]);
+export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests = [] }) {
+  const ser  = useMemo(() => seriesCarga(cal, ent, tests), [cal, ent, tests]);
 
   // El panel describe HOY. Se probó proyectarlo a mañana el 17-08 y se
   // revirtió el mismo día: decía "solo 1 día desde tu última carga de dedos"

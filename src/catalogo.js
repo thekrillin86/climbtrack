@@ -64,6 +64,18 @@ export const TIPO_POR_ID = Object.fromEntries(TIPOS.map(t => [t.id, t]));
 export const ESCALA_ESFUERZO = new Set(['BLOQUE', 'TRAVESIA', 'VIA_ROCO']);
 
 /* ------------------------------------------------------------------
+   Tipos cuya intensidad es %MVC **DE DEDOS**.
+
+   Distinto de "no estar en ESCALA_ESFUERZO": una dominada al 80 % es el 80 %
+   de su máximo DE DOMINADA, que es intensidad de tronco. Solo en estos dos el
+   número mide fuerza de dedos, y solo en estos dos tiene sentido que los
+   canales de cuerpo y sistémico salgan del RPE del bloque en vez de del
+   propio porcentaje. Confundir las dos cosas es el error de categoría del
+   §4b de CLAUDE.md, que ya se ha cometido tres veces.
+   ------------------------------------------------------------------ */
+export const MVC_DEDOS = new Set(['SUSP_REGLETA', 'SUSP_TEST']);
+
+/* ------------------------------------------------------------------
    CLASIFICADOR
    Convierte una cadena antigua en { tipo, params }.
    Se usa para migrar el histórico y para sugerir tipo al escribir.
@@ -95,9 +107,21 @@ export function extraerParams(texto, tipo) {
   const t = String(texto || '');
   const p = {};
   let m;
-  if ((m = t.match(/(\d+)\s*mm/i)))            p.regleta_mm = +m[1];
-  if ((m = t.match(/(\d+)\s*%/)))              p[ESCALA_ESFUERZO.has(tipo) ? 'pct_max' : 'pct_mvc'] = +m[1];
-  if ((m = t.match(/\+\s*(\d+)\s*kg/i)))       p.lastre_kg  = +m[1];
+  const num = s => Number(String(s).replace(',', '.').replace('−', '-').replace(/\s+/g, ''));
+  if ((m = t.match(/(\d+(?:[.,]\d+)?)\s*mm/i)))  p.regleta_mm = num(m[1]);
+  if ((m = t.match(/(\d+(?:[.,]\d+)?)\s*%/)))    p[ESCALA_ESFUERZO.has(tipo) ? 'pct_max' : 'pct_mvc'] = num(m[1]);
+  // El lastre puede ser NEGATIVO: su entrenador prescribe polea o goma para
+  // todo lo que baje del 80 % (al 75 % en 15 mm le tocan −7,25 kg). Antes la
+  // regex exigía el `+`, así que una suspensión asistida se leía como si fuera
+  // a peso corporal y salía un 5,6× de sobreestimación. Y los decimales se
+  // partían: "+7.5kg" daba 5 kg.
+  if ((m = t.match(/([+\-−]\s*\d+(?:[.,]\d+)?)\s*kg/i))) p.lastre_kg = num(m[1]);
+  else if ((m = t.match(/(\d+(?:[.,]\d+)?)\s*kg/i))) {
+    // Sin signo delante. Solo se toma como lastre AÑADIDO si nada en el texto
+    // sugiere asistencia; si habla de goma o polea, el signo es justo el dato
+    // que falta y no se adivina: se deja vacío y el modelo lo marca estimado.
+    if (!/goma|polea|asistid|banda|el[áa]stic/i.test(t)) p.lastre_kg = num(m[1]);
+  }
   if ((m = t.match(/(\d+)\s*mov/i)))           p.movimientos= +m[1];
   if ((m = t.match(/(\d+)["”]\s*:?\s*(\d+)["”]?/))) { p.trabajo_s = +m[1]; p.descanso_s = +m[2]; }
   else if ((m = t.match(/(\d+)["”]/)))         p.trabajo_s  = +m[1];

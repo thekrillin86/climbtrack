@@ -88,7 +88,7 @@ Migraciones existentes: 1 sin-op · 2 catálogo de ejercicios · 3 Suunto ·
 
 ## 4. Modelo de carga — decisiones ya tomadas, no las deshagas
 
-`src/carga.js`. Cuatro cosas que parecen mejorables y no lo son:
+`src/carga.js`. Cinco cosas que parecen mejorables y no lo son:
 
 **a) Tres canales, nunca un total.** `dedos`, `cuerpo`, `sistemico` se
 muestran por separado. No existe método aceptado para sumar carga entre
@@ -96,9 +96,11 @@ modalidades distintas (Dhahbi 2024). Un "total" sería un número inventado.
 
 **b) Dos escalas de intensidad, dos curvas de coste distintas.**
 
-- `costeIntensidad(f)` — para **%MVC**. Aplica el umbral de oclusión: por
-  debajo del 65,6 % no acumula (Bergua et al. 2021, media de 34 escaladores;
-  rango individual 45–75 %).
+- `costeIntensidad(f, umbral)` — para **%MVC**. Aplica el umbral de oclusión:
+  por debajo de él no acumula. **El umbral es el SUYO: 65 %, medido por su
+  entrenador y guardado en `ct5_tests`.** El 65,6 % que hay en `PARAMS` es
+  solo respaldo (Bergua et al. 2021, media de 34 escaladores, rango individual
+  45–75 %) y únicamente se usa si no hay ningún test anterior a esa fecha.
 - `costeEsfuerzo(f)` — para **RPE o fatiga percibida**. **No aplica umbral.**
 
 Aplicar el umbral de oclusión a un RPE es un error de categoría: el umbral
@@ -119,10 +121,27 @@ fuerza máxima de tus dedos. Su porcentaje va a `pct_max` y se lee con
 `pct_mvc`: `intensidadBloque` lee los dos campos y la escala la elige por
 `e.tipo`, así que no hay nada que migrar.
 
-Este error se ha cometido ya **dos veces, en direcciones opuestas**: primero
-aplicando el umbral a un RPE, después aplicándolo al % de un bloque (un
-bloque al 65 % desaparecía: `costeIntensidad(0,65) = 0`). Antes de tocar
-estas curvas, mira de qué escala viene el número.
+Este error se ha cometido ya **tres veces**: aplicando el umbral a un RPE;
+aplicándolo al % de un bloque (un bloque al 65 % desaparecía); y sacando los
+canales `cuerpo` y `sistemico` de un %MVC **de dedos** — 60 min de
+suspensiones daban `cuerpo 6,8` y `dedos 4,5`, con coeficientes de 0,20 y
+1,00: colgarse puntuaba más cuerpo que dedos.
+
+Para eso hay un **segundo** conjunto en `catalogo.js`, y no es el mismo que
+`ESCALA_ESFUERZO`:
+
+```js
+export const MVC_DEDOS = new Set(['SUSP_REGLETA', 'SUSP_TEST']);
+```
+
+Solo en esos dos el número mide fuerza **de dedos**, y solo en esos dos los
+canales de cuerpo y sistémico salen del **RPE del bloque** en vez de del
+propio porcentaje. Una dominada al 80 % es el 80 % de su máximo de dominada,
+que sí es intensidad de tronco: esa sigue usando su porcentaje. Confundir «no
+está en `ESCALA_ESFUERZO`» con «es %MVC de dedos» es la tercera versión del
+mismo fallo.
+
+Antes de tocar estas curvas, mira de qué escala viene el número.
 
 **c) τ distinto por canal** (`dedos: 2.5`, `cuerpo: 1.5`, `sistemico: 1.0`
 días). Los dedos se recuperan más lento. No los unifiques.
@@ -137,25 +156,71 @@ Hay dos motores y no daban la misma unidad:
   días que solo tienen eso.
 
 `seriesCarga` los mezcla en la misma serie, así que tienen que estar en la
-misma escala. Medido el **17-08-2026** sobre los **30 días del histórico que
-tienen los dos cálculos**, y ya con la escala de esfuerzo de (b) aplicada, la
-mediana de `detalle / actividad` era:
+misma escala. Medido sobre los **31 días del histórico que tienen los dos
+cálculos**, la mediana de `detalle / actividad` (19-08-2026):
 
 | canal     | factor |
 |-----------|--------|
-| dedos     | ×1,00  |
-| cuerpo    | ×2,92  |
-| sistémico | ×3,41  |
+| dedos     | ×1,33  |
+| cuerpo    | ×2,09  |
+| sistémico | ×2,19  |
 
-Es decir: el mismo día puntuaba el triple en cuerpo y sistémico si rellenaba
-los bloques que si ponía solo la actividad. **Rellenar el formulario le
-castigaba.** Esos tres números son `PARAMS.escalaActividad` y multiplican la
-salida de `cargaPorActividad`. Dedos sale 1,00: ese canal cuadró solo al
-arreglar (b).
+Antes de esto, el mismo día puntuaba el triple en cuerpo y sistémico si
+rellenaba los bloques que si ponía solo la actividad: **rellenar el formulario
+le castigaba.**
 
 No son una constante universal: son la relación medida entre **sus** dos
-formas de apuntar. **Si tocas los coeficientes de canal de `catalogo.js`
-(`dedos` / `cuerpo` / `sist` de los 11 tipos), hay que volver a medirlos.**
+formas de apuntar. **Hay que volver a medirlos si se tocan los coeficientes de
+canal de `catalogo.js` o el modelo de suspensiones de (e).** Ya se han medido
+tres veces por ese motivo.
+
+**Lo que este puente NO resuelve, y conviene saberlo:** los días con reloj y
+sin reloj se comportan distinto frente a él — medido, ×0,35 contra ×1,60 en
+dedos — porque `cargaPorActividad` escala con la duración y el puente se midió
+casi todo sobre días que usan los 60 minutos por defecto. Con solo 3 días que
+tengan detalle **y** reloj a la vez no se puede calibrar la otra rama sin
+inventarse el número. Hace falta más histórico.
+
+**e) El perfil de fuerza sale de `ct5_tests`, no de una constante.**
+
+Juan mantiene su perfil en la pestaña **Tests**: peso, MED40, MAW5, OT, CF y
+su curva individual de tiempo al fallo. Hasta el 19-08-2026 el modelo de carga
+**no lo leía**: usaba un umbral de un paper y asumía un 75 % fijo para
+cualquier suspensión. Su perfil era decorativo.
+
+`perfilEnFecha(tests, fecha)` lo lee con dos reglas:
+
+1. **El test vigente EN LA FECHA de la sesión**, no el último. Una sesión de
+   mayo se puntúa con la forma que tenía en mayo. Sus números se mueven de
+   verdad: entre enero y julio de 2026 bajó de 83 a 80 kg, el MED40 de 16 a
+   15 mm, y subió el MAW5 de 20 a 27 kg.
+2. **Respaldo POR CAMPO, no por registro.** Su test del 28-07 no tiene el OT
+   porque no se re-testeó: ese campo sigue valiendo el 65 % de enero mientras
+   el resto viene de julio.
+
+Con eso, `pctMVCSuspension` calcula la intensidad real en vez de asumirla,
+usando el modelo de su entrenador (hojas «M2 2026 / PLANTILLES ENTRENAMENTS»
+de su Drive):
+
+```
+Fmáx(mm) = fmaxRef × (1 − ajusteFuerzaPorMm × (regletaRef − mm))
+%MVC     = (peso + lastre) / Fmáx(mm)
+```
+
+Verificado contra su hoja al decimal en los cinco puntos que ella tabula.
+
+**El lastre puede ser negativo** (polea, goma): su entrenador prescribe
+asistencia para todo lo que baje del 80 %. Si el texto habla de goma o polea
+sin signo, no se adivina — se deja sin dato y el ejercicio queda estimado.
+
+Cada ejercicio lleva su `procedencia`: `anotado` (él escribió el %),
+`calculado` (sale del perfil) o `estimado` (no había con qué). La pestaña
+Carga lo dice en pantalla. En su histórico: 84 % anotado, 7 % calculado, 9 %
+estimado.
+
+**Ojo con la extrapolación:** el ajuste por milímetro es una recta y su hoja
+solo la tabula alrededor de la regleta de referencia. Más allá de
+`margenRegletaMm` el ejercicio se marca como estimado.
 
 Todos los parámetros están en `PARAMS`, arriba del fichero, a la vista y
 editables. Mantenlo así: nada de constantes escondidas a mitad de función.
