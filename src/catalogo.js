@@ -102,7 +102,11 @@ export function clasificar(texto) {
   // después de tren superior, para que gane la palabra del ejercicio.
   if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto/.test(x)) return 'GYM_TREN_INF';
   if (/hombro|rotaci[óo]n|rehabilit|apertura|tracci[óo]n|deltoide/.test(x)) return 'HOMBRO';
-  if (/core|abdominal|l-sit|plancha|placha|russian|escalador/.test(x)) return 'CORE';
+  // `bicho` es el bicho muerto (dead bug). Unico ejercicio sin clasificar de
+  // todo el historico de Juan: 1 bloque de 88, el del 24-08-2026, 5 minutos de
+  // 2.442. Va aqui y no arriba porque `peso muerto` -tren inferior- lleva su
+  // propia palabra y no se pisan: la cadena la gana el primer if que casa.
+  if (/core|abdominal|l-sit|plancha|placha|russian|escalador|bicho/.test(x)) return 'CORE';
   if (/press|remo|flexion|fondos|b[íi]ceps|tr[íi]ceps|trx|palof|militar|banca|nataci[óo]n/.test(x)) return 'GYM_TREN_SUP';
   // Cajón sin ejercicio que lo desambigüe ("Subida al cajón", "Step up
   // cajón"): tren inferior. Va aquí y no arriba para no volver a robarle
