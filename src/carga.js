@@ -392,6 +392,14 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
     // acumulado 0, que en pantalla parecía un fallo. No se inventa una
     // duración —ver CLAUDE.md §6—: se cuenta el hueco y se dice.
     sinMinutos: 0,
+    // Ejercicios cuyo texto no casa con ningún tipo, y los minutos que se
+    // llevan. Un ejercicio sin tipo no suma nada Y ADEMÁS se queda con su
+    // parte de la cuota del bloque (cuota = min / ejs.length), así que rebaja
+    // en silencio lo que sí está bien apuntado. La cuota NO se redistribuye:
+    // repartirla entre los demás inflaría al que sí clasifica, y cambiar un
+    // error silencioso por otro no es arreglarlo. Se cuenta y la pantalla de
+    // Carga lo dice, que es como se ve y se corrige escribiéndolo mejor.
+    sinClasificar: 0, minSinClasificar: 0,
   };
 
   for (const b of bloques) {
@@ -415,7 +423,7 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
 
     for (const e of ejs) {
       const t = TIPO_POR_ID[e.tipo];
-      if (!t) continue;
+      if (!t) { r.sinClasificar++; r.minSinClasificar += cuota; continue; }
       const x = intensidadBloque(b, e, perfil);
       const coste = costeSegunEscala(x, perfil);
 
@@ -465,6 +473,7 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
   if (!hayDetalle) return null;
   r.origen = 'detalle';
   r.minSubUmbral = Math.round(r.minSubUmbral);
+  r.minSinClasificar = Math.round(r.minSinClasificar);
   return redondear(r);
 }
 
@@ -527,11 +536,13 @@ export function seriesCarga(cal, ent, tests) {
   const porDia = {};
   const add = (fecha, c) => {
     if (!fecha || !c) return;
-    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [], cargaDedos: false, sinMinutos: 0 });
+    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [], cargaDedos: false, sinMinutos: 0, sinClasificar: 0, minSinClasificar: 0 });
     d.dedos += c.dedos; d.cuerpo += c.cuerpo; d.sistemico += c.sistemico;
     if (c.pico > d.pico) d.pico = c.pico;
     if (c.cargaDedos) d.cargaDedos = true;
     d.sinMinutos += c.sinMinutos || 0;
+    d.sinClasificar += c.sinClasificar || 0;
+    d.minSinClasificar += c.minSinClasificar || 0;
     if (c.origen && !d.origen.includes(c.origen)) d.origen.push(c.origen);
   };
 

@@ -9,6 +9,7 @@
 import React, { useMemo } from 'react';
 import { seriesCarga, fatigaAcumulada, perfilEnFecha, cargaPorDetalle, PARAMS } from './carga.js';
 import { AGARRE_POR_ID, repartoAgarres, viasPorAgarre } from './agarres.js';
+import { TIPOS } from './catalogo.js';
 import { td } from './lib.js';
 
 const COL = { dedos: '#E8A838', cuerpo: '#3A8FB7', sistemico: '#6B9F4A' };
@@ -78,12 +79,14 @@ export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
   // y la pantalla tiene que poder decirlo.
   const perfil = useMemo(() => perfilEnFecha(tests, hoy), [tests, hoy]);
   const susp = useMemo(() => {
-    const acc = { anotado: 0, calculado: 0, estimado: 0, subUmbral: 0, superaFmax: 0 };
+    const acc = { anotado: 0, calculado: 0, estimado: 0, subUmbral: 0, superaFmax: 0, sinClasificar: 0, minSinClasificar: 0 };
     for (const s of ent) {
       const c = cargaPorDetalle(s, perfilEnFecha(tests, s.fecha));
       if (!c?.procedencia) continue;
       for (const k of ['anotado', 'calculado', 'estimado']) acc[k] += c.procedencia[k] || 0;
       acc.subUmbral += c.minSubUmbral || 0;
+      acc.sinClasificar += c.sinClasificar || 0;
+      acc.minSinClasificar += c.minSinClasificar || 0;
       if (c.superaFmax) acc.superaFmax++;
     }
     acc.total = acc.anotado + acc.calculado + acc.estimado;
@@ -266,6 +269,16 @@ export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
           {' '}Exponente {PARAMS.exponente} · τ dedos {PARAMS.tau.dedos} d.
           Todo eso se cambia en carga.js.
         </div>
+
+        {susp.sinClasificar > 0 && (
+          <div style={{ fontSize: 11, color: '#5E5445', marginTop: 8, lineHeight: 1.45 }}>
+            <b>{susp.sinClasificar} ejercicio{susp.sinClasificar === 1 ? '' : 's'} sin clasificar</b>:
+            {' '}<b>{Math.round(susp.minSinClasificar)} min</b> que no cuentan. El texto no casa con
+            ninguno de los {TIPOS.length} tipos, así que no suma en ningún canal y además se lleva
+            su parte de los minutos del bloque. Se arregla escribiéndolo de otra forma, o añadiendo
+            la palabra al clasificador de catalogo.js.
+          </div>
+        )}
       </div>
     </div>
   );
