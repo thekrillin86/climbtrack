@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "test": "node src/carga.test.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
