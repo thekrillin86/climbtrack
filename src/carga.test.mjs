@@ -92,18 +92,49 @@ prueba('3 · unos minutos negativos no restan carga', () => {
 });
 
 /* ==================================================================
-   4 · UN EJERCICIO SIN CLASIFICAR NO SE LLEVA LOS MINUTOS
+   4 · UN EJERCICIO SIN CLASIFICAR SE CUENTA Y SE DICE
    ================================================================== */
-prueba('4 · un ejercicio sin clasificar no se lleva los minutos', () => {
-  const solo = cargaPorDetalle(sesion([bloque({ ejercicios: ['Bloque 25 mov'] })]), PERFIL);
-  const conRuido = cargaPorDetalle(sesion([bloque({ ejercicios: ['Bloque 25 mov', 'qwertyuiop'] })]), PERFIL);
-  assert.equal(conRuido.dedos, solo.dedos,
-    `el bloque aporta ${solo.dedos} de dedos él solo y ${conRuido.dedos} con un ejercicio sin ` +
-    `clasificar al lado. cargaPorDetalle reparte los minutos entre TODOS los ejercicios ` +
-    `(cuota = min / ejs.length) y después salta los que no tienen tipo, así que el texto sin ` +
-    `clasificar se lleva su parte y desaparece con ella. Es el fallo de «Rfd 10mm» y de ` +
-    `«Fondos cajón» visto desde dentro: una errata al escribir no debería descontar carga ` +
-    `real. Arreglo: repartir la cuota solo entre los ejercicios que sí clasifican.`);
+prueba('4 · un ejercicio sin clasificar se cuenta y se dice', () => {
+  // Un ejercicio cuyo texto no casa con ningún tipo no suma en ningún canal y
+  // ADEMÁS se queda con su parte de la cuota del bloque. Eso NO se redistribuye,
+  // y es deliberado: repartir esos minutos entre los demás inflaría al que sí
+  // clasifica. «Bicho muerto» —el único caso real del histórico, 5 minutos del
+  // 24-08— era un ejercicio de verdad, no una errata.
+  // Lo que se comprueba es que el hueco quede CONTADO, que es lo que permite
+  // que la pantalla de Carga lo diga y se arregle escribiéndolo mejor.
+  const ruido = 'qwertyuiop';   // inventado: no casa con ninguna regla
+
+  assert.equal(clasificar(ruido), null,
+    `«${ruido}» ya clasifica como ${clasificar(ruido)}, así que esta comprobación ha dejado ` +
+    `de probar lo que dice. Cambia el texto por otro que no case con ninguna regla.`);
+
+  const limpio = cargaPorDetalle(sesion([bloque({ ejercicios: ['Bloque 25 mov'] })]), PERFIL);
+  assert.equal(limpio.sinClasificar, 0,
+    `un bloque con todo clasificado da sinClasificar ${limpio.sinClasificar} y tiene que ser 0.`);
+
+  const conRuido = cargaPorDetalle(sesion([bloque({ ejercicios: ['Bloque 25 mov', ruido] })]), PERFIL);
+
+  assert.equal(conRuido.sinClasificar, 1,
+    `con un ejercicio sin clasificar de dos, sinClasificar sale ${conRuido.sinClasificar} y ` +
+    `tiene que ser 1. Sin ese contador el hueco es invisible: el ejercicio no suma nada en ` +
+    `ningún canal y encima se lleva su parte de los minutos del bloque.`);
+
+  assert.equal(conRuido.minSinClasificar, 30,
+    `los minutos que se lleva el ejercicio sin clasificar salen ${conRuido.minSinClasificar} ` +
+    `y tienen que ser 30: el bloque son 60 min repartidos entre 2 ejercicios.`);
+
+  // Y el que sí clasifica cobra su cuota, ni más ni menos.
+  const esperado = Math.round(limpio.dedos / 2 * 10) / 10;
+  assert.equal(conRuido.dedos, esperado,
+    `el ejercicio bien escrito aporta ${conRuido.dedos} de dedos y tendría que aportar ` +
+    `${esperado}, la mitad de los ${limpio.dedos} que aporta él solo, porque la cuota se ` +
+    `reparte entre los dos. Si sale más, alguien ha empezado a redistribuir los minutos del ` +
+    `que no clasifica, y eso infla lo que sí está bien apuntado.`);
+
+  // El caso real que motivó todo esto ya no es un hueco: clasifica como CORE.
+  assert.equal(clasificar('Bicho muerto'), 'CORE',
+    `«Bicho muerto» clasifica como ${clasificar('Bicho muerto')} y tiene que ser CORE. ` +
+    `Era el único ejercicio sin clasificar de todo el histórico: 5 minutos del 24-08-2026.`);
 });
 
 /* ==================================================================
@@ -165,6 +196,10 @@ prueba('6 · el clasificador no se roba términos entre reglas', () => {
     ['Bloque 75%', 'BLOQUE'],
     ['Travesía 25 mov', 'TRAVESIA'],
     ['Dominadas +10kg', 'DOMINADA'],
+    // El bicho muerto es core, y no se lo queda «peso muerto», que es pierna.
+    ['Bicho muerto', 'CORE'],
+    ['Bichos muertos', 'CORE'],
+    ['Peso muerto', 'GYM_TREN_INF'],
   ];
   for (const [texto, esperado] of casos) {
     const salio = clasificar(texto);
@@ -209,6 +244,8 @@ prueba('7 · la sesión conocida del 17-08 da los mismos números', () => {
 
   assert.equal(c.sinMinutos, 0,
     `sinMinutos sale ${c.sinMinutos} y tiene que ser 0: los tres bloques llevan minutos.`);
+  assert.equal(c.sinClasificar, 0,
+    `sinClasificar sale ${c.sinClasificar} y tiene que ser 0: los cinco ejercicios clasifican.`);
   assert.equal(c.cargaDedos, true,
     `cargaDedos sale ${c.cargaDedos} y tiene que ser true: la sesión lleva suspensiones y bloque.`);
 });
