@@ -387,13 +387,22 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
     // el modelo de su entrenador. Pero si no se cuenta, un bloque entero
     // desaparece en silencio.
     minSubUmbral: 0,
+    // Bloques de dedos SIN minutos anotados. La sesión existió, su duración
+    // no está: la carga sale 0 y el día queda marcado como carga de dedos con
+    // acumulado 0, que en pantalla parecía un fallo. No se inventa una
+    // duración —ver CLAUDE.md §6—: se cuenta el hueco y se dice.
+    sinMinutos: 0,
   };
 
   for (const b of bloques) {
     const ejs = ejerciciosDeBloque(b);
     if (!ejs.length) continue;
     hayDetalle = true;
-    const min = Number(b.minutos) || 0;
+    // Los minutos negativos no existen. Un "-30" tecleado por error RESTABA
+    // carga del día en vez de sumarla, y esa resta se propagaba a la serie y
+    // a la fatiga acumulada. cargaPorActividad ya lo filtra exigiendo > 0 en
+    // los minutos del reloj; aquí no había guardia.
+    const min = Math.max(0, Number(b.minutos) || 0);
     const cuota = min / ejs.length;
 
     // Chips de agarre marcados a mano en el bloque. Cuando están, mandan
@@ -402,6 +411,7 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
     // mismo criterio que repartoAgarres() de agarres.js.
     const chips = Array.isArray(b.agarres) ? b.agarres.filter(a => AGARRE_POR_ID[a]) : [];
     let dedosBloque = 0;
+    let hayDedos = false;        // ¿este bloque es trabajo de dedos?
 
     for (const e of ejs) {
       const t = TIPO_POR_ID[e.tipo];
@@ -433,7 +443,7 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
       // ¿Este día cuenta como "carga de dedos"? Se decide por el TIPO de
       // ejercicio, no por el número: un gimnasio entero da 0,2 de dedos y eso
       // no es colgarse de nada. Ver PARAMS.umbralCanalDedos.
-      if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos) r.cargaDedos = true;
+      if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos) { r.cargaDedos = true; hayDedos = true; }
 
       if ((t.dedos ?? 0) >= PARAMS.umbralCanalDedos) {
         if (chips.length) dedosBloque += dd;
@@ -448,6 +458,9 @@ export function cargaPorDetalle(sesionEnt, perfil = null) {
     if (chips.length && dedosBloque > 0) {
       for (const a of chips) r.porAgarre[a] = (r.porAgarre[a] || 0) + dedosBloque / chips.length;
     }
+
+    // Trabajo de dedos sin duración anotada: se cuenta el hueco.
+    if (hayDedos && min <= 0) r.sinMinutos++;
   }
   if (!hayDetalle) return null;
   r.origen = 'detalle';
@@ -514,10 +527,11 @@ export function seriesCarga(cal, ent, tests) {
   const porDia = {};
   const add = (fecha, c) => {
     if (!fecha || !c) return;
-    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [], cargaDedos: false });
+    const d = porDia[fecha] || (porDia[fecha] = { dedos: 0, cuerpo: 0, sistemico: 0, pico: 0, origen: [], cargaDedos: false, sinMinutos: 0 });
     d.dedos += c.dedos; d.cuerpo += c.cuerpo; d.sistemico += c.sistemico;
     if (c.pico > d.pico) d.pico = c.pico;
     if (c.cargaDedos) d.cargaDedos = true;
+    d.sinMinutos += c.sinMinutos || 0;
     if (c.origen && !d.origen.includes(c.origen)) d.origen.push(c.origen);
   };
 

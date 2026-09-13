@@ -104,7 +104,7 @@ function compararTest(treg, t25) {
    El mismo día se dice "hoy" y ya está. Ver CLAUDE.md §6. */
 function ventanaTendinosa(series, refISO) {
   const ref = new Date(refISO);
-  let acum = 0, dias7 = 0, ultima = null, hayDatos = false;
+  let acum = 0, dias7 = 0, ultima = null, hayDatos = false, sinMinutos = 0;
   for (const [f, c] of Object.entries(series)) {
     const d = (ref - new Date(f)) / 86400000;
     if (!Number.isFinite(d) || d < 0 || d >= 7) continue;   // 7 días, no 8
@@ -114,6 +114,10 @@ function ventanaTendinosa(series, refISO) {
     // coeficientes de 0,05— ponía la ventana en rojo al día siguiente.
     if (c.cargaDedos) {
       acum += c.dedos; dias7++;
+      // Bloques de dedos sin duración anotada. Sin esto, el banner podía
+      // decir "carga de dedos 7 d: 0" y a la vez "1 día con carga", que se
+      // lee como un fallo cuando lo que pasa es que faltan los minutos.
+      sinMinutos += c.sinMinutos || 0;
       if (!ultima || f > ultima) ultima = f;
     }
   }
@@ -126,7 +130,7 @@ function ventanaTendinosa(series, refISO) {
   else if (dias === 1)                { nivel = 'red';   msg = '1 día desde tu última carga de dedos.'; }
   else if (dias === 2)                { nivel = 'amber'; msg = '2 días. El tejido sigue en ventana.'; }
   else if (dias !== null)             { nivel = 'green'; msg = `${dias} días. Los dedos han descansado lo suficiente.`; }
-  return { nivel, msg, acum: Math.round(acum * 10) / 10, dias7, dias, ultima };
+  return { nivel, msg, acum: Math.round(acum * 10) / 10, dias7, dias, ultima, sinMinutos };
 }
 
 /* --------- ¿ha habido cardio de verdad? ---------
@@ -298,6 +302,12 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
           <div style={{ fontSize: 11, marginTop: 6, opacity: 0.75 }}>
             Carga de dedos 7 d: <b>{vent.acum}</b> · {vent.dias7} día{vent.dias7 === 1 ? '' : 's'} con carga
             {vent.ultima && <> · última carga: <b>{vent.ultima.slice(8)}/{vent.ultima.slice(5, 7)}</b></>}
+            {vent.sinMinutos > 0 && (
+              <div style={{ marginTop: 2 }}>
+                {vent.sinMinutos} bloque{vent.sinMinutos === 1 ? '' : 's'} de dedos sin minutos anotados:
+                {vent.sinMinutos === 1 ? ' cuenta' : ' cuentan'} para la ventana, pero no suma{vent.sinMinutos === 1 ? '' : 'n'} carga.
+              </div>
+            )}
           </div>
         </div>
       </div>
