@@ -159,9 +159,27 @@ export function costeIntensidad(fraccion, umbral) {
   return Math.pow((i - u) / (1 - u), PARAMS.exponente);
 }
 
-/** Fracción de RPE de un bloque. Un 0 anotado es un 0, no un "no hay dato". */
+/**
+ * Fracción de RPE de un bloque. Un 0 anotado es un 0; un campo VACÍO no.
+ *
+ * `Number('')` vale 0, así que el guardián anterior daba por anotado el RPE en
+ * blanco con el que el formulario crea cada bloque nuevo (`rpe: ''`). Con
+ * `costeEsfuerzo(0) = 0` el bloque entero dejaba de sumar: un rocódromo de 90
+ * min con el RPE sin rellenar daba 0/0/0 en los tres canales y, como el día
+ * tenía detalle, `seriesCarga` descartaba además el respaldo del calendario,
+ * que habría dado 12,2/11,3/8,3. Rellenar el formulario salía peor que no
+ * rellenarlo — el mismo problema que arregla `escalaActividad`, por otra
+ * puerta y en su versión extrema. Regresión introducida el 19-08-2026.
+ *
+ * El 0 anotado que protegía ese guardián no se puede ni escribir: el campo del
+ * formulario es `min={1} max={10}`. Se sigue respetando si llega por
+ * importación, pero como número, no como cadena vacía. Mismo criterio que
+ * `fatigaDe()` con `fatiga_fin`, que ya distinguía bien las dos cosas.
+ */
 export function rpeFraccion(bloque) {
-  const r = Number(bloque?.rpe);
+  const b = bloque?.rpe;
+  const vacio = b === null || b === undefined || String(b).trim() === '';
+  const r = vacio ? NaN : Number(b);
   const v = (Number.isFinite(r) && r >= 0) ? r : PARAMS.rpePorDefecto;
   return Math.min(v / PARAMS.escalaRpe, 1);
 }
