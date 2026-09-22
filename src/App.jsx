@@ -208,7 +208,23 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
   const blank={fecha:td(),macro:'',meso:'',activitat:'',lloc:'',fatiga_ini:1,fatiga_fin:1,sueno_horas:'',sueno_calidad:'',bienestar:'',obs:''};
   const[form,setForm]=useState(blank);const[flt,setFlt]=useState('');
   const sorted=useMemo(()=>[...data].filter(r=>!flt||r.activitat===flt).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data,flt]);
-  const sub=()=>{if(!form.activitat)return;if(eid)save(data.map(r=>r.id===eid?{...form,id:eid}:r));else save([...data,{...form,id:xi()}]);setShow(false);setEid(null)};
+  /* Datos del reloj. La columna `suunto` ya existía en ct5_cal y
+     cargaPorActividad ya sabe usarla: con minutos reales mide la duración en
+     vez de asumir 60, y con kcal el sistémico sale del gasto en vez de
+     estimarse desde la fatiga. Lo único que faltaba era poder escribirlos.
+     Se guarda con la misma forma que devuelve parseSuunto(): {min, kcal,
+     hr_med, hr_max}. */
+  const sS=(f,v)=>setForm(x=>({...x,suunto:{...(x.suunto||{}),[f]:v}}));
+  /* Si no hay ningún número, no se escribe el campo: un `suunto` vacío diría
+     que hay reloj donde no lo hay, y el día tiene que seguir comportándose
+     exactamente como antes. `hr_max` se conserva si ya venía del importador,
+     aunque el formulario no lo pida. */
+  const limpiaSuunto=s=>{
+    if(!s||typeof s!=='object')return undefined;
+    const n=k=>{const v=Number(s[k]);return Number.isFinite(v)&&v>0?v:null};
+    const o={min:n('min'),kcal:n('kcal'),hr_med:n('hr_med'),hr_max:n('hr_max')};
+    return(o.min||o.kcal||o.hr_med)?o:undefined};
+  const sub=()=>{if(!form.activitat)return;const f={...form,suunto:limpiaSuunto(form.suunto)};if(eid)save(data.map(r=>r.id===eid?{...f,id:eid}:r));else save([...data,{...f,id:xi()}]);setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Rutina Diaria</h2>
     <div style={{marginBottom:12}}><select className="f-input" style={{maxWidth:200}} value={flt} onChange={e=>setFlt(e.target.value)}><option value="">Todas</option>{ACTS.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Nueva Actividad'}>
@@ -217,6 +233,9 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
       <Combo label="Lugar" value={form.lloc||''} onChange={v=>setForm({...form,lloc:v})} options={llocs}/>
       <div className="row-2"><F label="Macro" value={form.macro} onChange={v=>setForm({...form,macro:v})} type="number" min={1}/><F label="Meso" value={form.meso} onChange={v=>setForm({...form,meso:v})} type="number" min={1}/></div>
       <div className="row-2"><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
+      <div className="sh a">⌚ Suunto</div>
+      <div className="row-3"><F label="FC media" value={form.suunto?.hr_med??''} onChange={v=>sS('hr_med',v)} type="number" min={25} max={230}/><F label="Calorías" value={form.suunto?.kcal??''} onChange={v=>sS('kcal',v)} type="number" min={1}/><F label="Minutos" value={form.suunto?.min??''} onChange={v=>sS('min',v)} type="number" min={1}/></div>
+      <div style={{fontSize:10,color:'#5E5445',marginTop:-4,marginBottom:8,lineHeight:1.4}}>Opcional. Con minutos se mide la duración real en vez de asumir 60; con calorías, el sistémico sale del gasto y no de la fatiga.</div>
       <div className="sh a">💤 Sueño y Bienestar</div>
       <div className="row-3"><F label="Horas" value={form.sueno_horas} onChange={v=>setForm({...form,sueno_horas:v})} type="number" step="0.5"/><F label="Calidad 1-5" value={form.sueno_calidad} onChange={v=>setForm({...form,sueno_calidad:v})} type="number" min={1} max={5}/><F label="Bienestar 1-5" value={form.bienestar} onChange={v=>setForm({...form,bienestar:v})} type="number" min={1} max={5}/></div>
       <F label="Obs" value={form.obs} onChange={v=>setForm({...form,obs:v})}/>
