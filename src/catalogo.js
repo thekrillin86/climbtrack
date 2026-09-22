@@ -90,7 +90,10 @@ export function clasificar(texto) {
   // sin tipo no suma nada: `cargaPorDetalle` lo salta y además se lleva su
   // parte de los minutos del bloque. El consejo daba 0,0 de dedos donde "Rfd"
   // a secas daba 2,4. Comprobado el 19-08-2026.
-  if (/susp/.test(x) || /\brfd\b/.test(x))                       return 'SUSP_REGLETA';
+  // `campus` (cambios de manos, series de campus) y `multipresa` son trabajo
+  // de dedos en regleta: mismo canal que una suspensión. Van aquí arriba, con
+  // `susp`, y no se pisan con la regla de test, que pide maw/med40/ftl/«test ».
+  if (/susp|campus|multipresa/.test(x) || /\brfd\b/.test(x))      return 'SUSP_REGLETA';
   if (/dominad/.test(x) || /^pap/.test(x))                       return 'DOMINADA';
   if (/traves[íi]a|travesia/.test(x))                            return 'TRAVESIA';
   if (/bloque|bloc\b/.test(x))                                   return 'BLOQUE';
@@ -100,13 +103,20 @@ export function clasificar(texto) {
   // tren inferior por la palabra cajón. En su histórico hay 4 entradas.
   // El cajón suelto ("Subida al cajón") sigue reconocido, pero MÁS ABAJO:
   // después de tren superior, para que gane la palabra del ejercicio.
-  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto/.test(x)) return 'GYM_TREN_INF';
-  if (/hombro|rotaci[óo]n|rehabilit|apertura|tracci[óo]n|deltoide/.test(x)) return 'HOMBRO';
+  if (/sentadilla|peso muerto|puente|isquios|gl[úu]teo|split|pingeon|rana|rockin|salto|hip\s*thrust/.test(x)) return 'GYM_TREN_INF';
+  // Preventivo de hombro, codo y antebrazo. `face pull` va aquí y no en tren
+  // superior —que se lleva press|remo|trx— porque para él es preventivo, igual
+  // que `apertura` y `tracci[óo]n`, que ya estaban. `extensor` (de muñeca, de
+  // canell) y abrir dedos con goma son antagonistas del antebrazo: trabajan
+  // justo lo contrario que una suspensión, así que no pueden ir con ellas.
+  if (/hombro|rotaci[óo]n|rotar|rehabilit|apertura|tracci[óo]n|deltoide|face\s*pull|extensor|abrir dedos|obrir dits/.test(x)) return 'HOMBRO';
   // `bicho` es el bicho muerto (dead bug). Unico ejercicio sin clasificar de
   // todo el historico de Juan: 1 bloque de 88, el del 24-08-2026, 5 minutos de
   // 2.442. Va aqui y no arriba porque `peso muerto` -tren inferior- lleva su
   // propia palabra y no se pisan: la cadena la gana el primer if que casa.
-  if (/core|abdominal|l-sit|plancha|placha|russian|escalador|bicho/.test(x)) return 'CORE';
+  // `rodilla al codo` entero, no `rodilla` suelto: una rodilla sola tiraría
+  // hacia pierna y la regla de tren inferior va antes que ésta.
+  if (/core|abdominal|l-sit|plancha|placha|russian|escalador|bicho|rodilla al codo/.test(x)) return 'CORE';
   if (/press|remo|flexion|fondos|b[íi]ceps|tr[íi]ceps|trx|palof|militar|banca|nataci[óo]n/.test(x)) return 'GYM_TREN_SUP';
   // Cajón sin ejercicio que lo desambigüe ("Subida al cajón", "Step up
   // cajón"): tren inferior. Va aquí y no arriba para no volver a robarle

@@ -210,6 +210,49 @@ prueba('6 · el clasificador no se roba términos entre reglas', () => {
 });
 
 /* ==================================================================
+   6b · LAS ONCE CADENAS DEL 22-09 SIGUEN CLASIFICANDO
+   ================================================================== */
+prueba('6b · las once cadenas del 22-09 siguen clasificando', () => {
+  // Once ejercicios que Juan hace de verdad y que hasta el 22-09-2026 no
+  // casaban con ninguna regla: no sumaban en ningún canal y encima se
+  // llevaban su parte de los minutos del bloque. Si alguna vuelve a dar
+  // null, se ha perdido un término del clasificador.
+  const casos = [
+    ['Face pull', 'HOMBRO'],
+    ['Hip thrust', 'GYM_TREN_INF'],
+    ['Extensor de muñeca', 'HOMBRO'],
+    ['Extensor de canell', 'HOMBRO'],
+    ['Abrir dedos con goma', 'HOMBRO'],
+    ['Obrir dits', 'HOMBRO'],
+    ['Rotar disco sobre la cabeza', 'HOMBRO'],
+    ['Rodilla al codo con goma', 'CORE'],
+    ['Cambio de manos campus 5"', 'SUSP_REGLETA'],
+    ['Campus 5 series', 'SUSP_REGLETA'],
+    ['Multipresa escalonada', 'SUSP_REGLETA'],
+    // Variantes de escritura que tienen que caer igual.
+    ['Facepull', 'HOMBRO'],
+    ['Hipthrust', 'GYM_TREN_INF'],
+    // Y los vecinos a los que estos términos podrían haber robado: `face pull`
+    // frente a press/remo/trx, `extensor` frente a las suspensiones, `rotar`
+    // frente a `rotaci[óo]n`, y `rodilla al codo` frente a la regla de pierna,
+    // que va antes que la de core.
+    ['Press banca', 'GYM_TREN_SUP'],
+    ['Remo cajón', 'GYM_TREN_SUP'],
+    ['Trx', 'GYM_TREN_SUP'],
+    ['Susp. 15mm', 'SUSP_REGLETA'],
+    ['Rotación externa', 'HOMBRO'],
+    ['Tracción escapular', 'HOMBRO'],
+    ['Sentadilla', 'GYM_TREN_INF'],
+  ];
+  for (const [texto, esperado] of casos) {
+    const salio = clasificar(texto);
+    assert.equal(salio, esperado,
+      `«${texto}» clasifica como ${salio} y tiene que ser ${esperado}. Gana la primera regla ` +
+      `que casa: si has añadido un término, mira a qué reglas de más abajo les quita ejercicios.`);
+  }
+});
+
+/* ==================================================================
    7 · CONTROL DE REGRESIÓN SOBRE UNA SESIÓN CONOCIDA
    ================================================================== */
 prueba('7 · la sesión conocida del 17-08 da los mismos números', () => {
