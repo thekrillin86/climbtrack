@@ -261,6 +261,19 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
     setShow(false);setEid(null);setForm(blank)};
   const gB=r=>{if(r.bloques&&Array.isArray(r.bloques)&&r.bloques.length)return r.bloques;const b=[];if(r.parte_gen)b.push({tipo:'General',ejercicios:(r.parte_gen||'').split(' , '),minutos:r.min_gen,rpe:r.rpe_gen,carga:r.carga_gen});if(r.ej_esp)b.push({tipo:'Específica',ejercicios:(r.ej_esp||'').split(' , '),minutos:r.min_esp,rpe:r.rpe_esp,carga:r.carga_esp});return b};
   const ed=r=>{const bl=gB(r);setForm({...r,bloques:bl.length?bl:[eb('General'),eb('Específica')]});setEid(r.id);setShow(true)};
+  /* Duplicar: sus sesiones se repiten casi iguales, sobre todo la parte de
+     escalada. Se copia la PLANTILLA —tipo, macro, meso y los bloques enteros
+     con sus ejercicios, series, minutos, RPE y agarres— y nada de lo que es
+     del día concreto: ni Tindeq, ni Suunto, ni fatiga, ni observaciones, ni
+     la hora. Se parte de `blank` justamente para no arrastrarlos por
+     descuido. El id del registro y el de cada bloque se regeneran, y `eid`
+     queda a null para que Registrar cree uno nuevo en vez de pisar el
+     original. */
+  const dup=r=>{
+    const bl=gB(r).map(b=>({...b,id:xi(),ejercicios:[...(b.ejercicios||[''])],agarres:[...(b.agarres||[])]}));
+    setForm({...blank,fecha:td(),tipo:r.tipo||'',macro:r.macro||'',meso:r.meso||'',
+      bloques:bl.length?bl:[eb('General'),eb('Específica')]});
+    setEid(null);setShow(true)};
   return(<div className="page"><h2 className="p-title">Entrenamientos</h2>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Nuevo Entrenamiento'}>
       <div className="row-3"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/><F label="Hora" value={form.hora} onChange={v=>setForm({...form,hora:v})} type="time"/><F label="Tipo" value={form.tipo} onChange={v=>setForm({...form,tipo:v})} options={TIPOS}/></div>
@@ -288,7 +301,7 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
     </Modal>
     <div className="card lc">{sorted.slice(0,40).map((r,i)=>{const bl=gB(r);const hasB=r.bloques&&Array.isArray(r.bloques)&&r.bloques.length>0;
       return(<div key={r.id||i} className="ent-row" onClick={()=>ed(r)}>
-      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span><span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span style={{color:'#6B9F4A',fontSize:10}}>★</span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span></div></div>
+      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.hora&&<span className="lr-d" style={{marginLeft:4}}>{r.hora}</span>}<span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span style={{color:'#6B9F4A',fontSize:10}}>★</span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span><button type="button" title="Duplicar en la fecha de hoy" onClick={e=>{e.stopPropagation();dup(r)}} style={{marginLeft:6,padding:'2px 7px',borderRadius:6,border:'1px solid #33291F',background:'transparent',color:'#8B7D6B',fontSize:12,cursor:'pointer'}}>⧉</button></div></div>
       {bl.map((b,bi)=><div key={bi} style={{display:'flex',alignItems:'center',gap:6,marginTop:4,fontSize:11,color:'#8B7D6B'}}><span className={`block-tag-sm ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo?.charAt(0)}</span>{b.series&&<span style={{color:'#9B6BB7'}}>{b.series}×</span>}<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(b.ejercicios||[]).filter(e=>e).join(' · ')}</span></div>)}
       <div style={{fontSize:11,marginTop:4}}><span style={{color:(r.fatiga_fin||1)>3?'#D4563A':'#6B9F4A'}}>Fatiga {r.fatiga_ini}→{r.fatiga_fin}</span>{r.hr_avg&&<span style={{color:'#9B6BB7',marginLeft:8}}>♥{r.hr_avg}/{r.hr_max}</span>}</div>
     </div>)})}</div>
