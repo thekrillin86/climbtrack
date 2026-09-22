@@ -236,7 +236,11 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
   const lastMm=useMemo(()=>lastEdge(treg),[treg]);
   const TIPOS=['Rocòdrom','Suspensions/Dominades','Gimnàs'];
   const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:'',agarres:[]});
-  const blank={fecha:td(),macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
+  // `hora` es opcional y nace vacía: los 53 registros antiguos no la tienen y
+  // tienen que seguir funcionando igual. Ningún cálculo la usa todavía —
+  // primero se guarda, y cuando haya histórico se decide qué hacer con ella.
+  // CLAUDE.md §6: la hora se apunta, no se deduce.
+  const blank={fecha:td(),hora:'',macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const sB=(i,f,v)=>{const b=[...form.bloques];b[i]={...b[i],[f]:v};setForm({...form,bloques:b})};
@@ -259,7 +263,7 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
   const ed=r=>{const bl=gB(r);setForm({...r,bloques:bl.length?bl:[eb('General'),eb('Específica')]});setEid(r.id);setShow(true)};
   return(<div className="page"><h2 className="p-title">Entrenamientos</h2>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Nuevo Entrenamiento'}>
-      <div className="row-2"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/><F label="Tipo" value={form.tipo} onChange={v=>setForm({...form,tipo:v})} options={TIPOS}/></div>
+      <div className="row-3"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/><F label="Hora" value={form.hora} onChange={v=>setForm({...form,hora:v})} type="time"/><F label="Tipo" value={form.tipo} onChange={v=>setForm({...form,tipo:v})} options={TIPOS}/></div>
       <div className="row-2"><F label="Macro" value={form.macro} onChange={v=>setForm({...form,macro:v})} type="number"/><F label="Meso" value={form.meso} onChange={v=>setForm({...form,meso:v})} type="number"/></div>
       <div className="sh a">⌚ Suunto</div>
       <div className="row-3"><F label="FC media" value={form.hr_avg} onChange={v=>setForm({...form,hr_avg:v})} type="number"/><F label="FC máx" value={form.hr_max} onChange={v=>setForm({...form,hr_max:v})} type="number"/><F label="Calorías" value={form.calorias} onChange={v=>setForm({...form,calorias:v})} type="number"/></div>
