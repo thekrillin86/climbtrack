@@ -4,7 +4,8 @@ import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg
 import { ejecutarMigraciones } from './migrations.js';
 import { PantallaFallo, confirmarSobrescritura } from './seguridad.jsx';
 import NubeP from './NubeP.jsx';
-import { iniciarNube } from './nube.js';
+import { iniciarNube, leerBandeja, quitarDeBandeja } from './nube.js';
+import { validarPropuesta, prepararRegistro, yaAnadida, describir } from './bandeja.js';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
@@ -54,6 +55,25 @@ export default function App(){
 
   useEffect(()=>{(async()=>{try{const i=await ld('ct5_init',false);if(i){const mg=await ejecutarMigraciones();if(!mg.ok){setFallo('Migración fallida. No se ha modificado ningún dato.\n\n'+mg.error);setLoading(false);return}const[a,b,c,d,e,f,g,h]=await Promise.all([ld('ct5_cal'),ld('ct5_ent'),ld('ct5_roca'),ld('ct5_lib'),ld('ct5_t25'),ld('ct5_treg'),ld('ct5_dp'),ld('ct5_tests',[DT])]);setCal(a);setEnt(b);setRoca(c);setLib(d);setT25(e);setTreg(f);setDp(g);setTests(h);setInit(true);setBkp(await backupStatus());iniciarNube().catch(e=>console.warn('[nube]',e))}}catch(e){console.error(e);setFallo('Error al cargar los datos.\n\n'+(e?.message||e))}setLoading(false)})()},[]);
   const s=useCallback(async(k,d,fn)=>{fn(d);await sv(k,d)},[]);
+  /* Bandeja de Talaia: propuestas que llegan por la nube y que solo entran
+     si Juan toca Añadir. Añadir usa el mismo s() que cualquier formulario. */
+  const[bandeja,setBandeja]=useState([]);const[verBandeja,setVerBandeja]=useState(false);const[errBandeja,setErrBandeja]=useState('');
+  useEffect(()=>{if(!init)return;let vivo=true;
+    const cargarB=()=>leerBandeja().then(l=>{if(vivo)setBandeja(l)});
+    cargarB();const vis=()=>{if(document.visibilityState==='visible')cargarB()};
+    document.addEventListener('visibilitychange',vis);
+    return()=>{vivo=false;document.removeEventListener('visibilitychange',vis)}},[init]);
+  const colecciones=useMemo(()=>({ct5_cal:[cal,setCal],ct5_ent:[ent,setEnt],ct5_roca:[roca,setRoca],ct5_lib:[lib,setLib],ct5_t25:[t25,setT25],ct5_treg:[treg,setTreg],ct5_dp:[dp,setDp],ct5_tests:[tests,setTests]}),[cal,ent,roca,lib,t25,treg,dp,tests]);
+  const datosPorClave=useMemo(()=>Object.fromEntries(Object.entries(colecciones).map(([k,[v]])=>[k,v])),[colecciones]);
+  const pendientes=useMemo(()=>bandeja.filter(b=>!yaAnadida(b.id,datosPorClave)),[bandeja,datosPorClave]);
+  // Si una propuesta ya se añadió pero no se pudo borrar de la nube (sin cobertura), se borra ahora.
+  useEffect(()=>{bandeja.filter(b=>yaAnadida(b.id,datosPorClave)).forEach(b=>{quitarDeBandeja(b.id).then(()=>setBandeja(x=>x.filter(y=>y.id!==b.id))).catch(()=>{})})},[bandeja,datosPorClave]);
+  const aceptarPropuesta=useCallback(async item=>{setErrBandeja('');const err=validarPropuesta(item.propuesta);if(err){setErrBandeja(err);return}
+    const porClave={};item.propuesta.registros.forEach(r=>{(porClave[r.clave]=porClave[r.clave]||[]).push(prepararRegistro(r.clave,r.registro,item.id,xi))});
+    for(const[k,nuevos]of Object.entries(porClave)){const[actual,set]=colecciones[k];await s(k,[...actual,...nuevos],set)}
+    try{await quitarDeBandeja(item.id)}catch(e){console.warn('[bandeja]',e)}
+    setBandeja(b=>b.filter(x=>x.id!==item.id))},[colecciones,s]);
+  const descartarPropuesta=useCallback(async item=>{setErrBandeja('');try{await quitarDeBandeja(item.id);setBandeja(b=>b.filter(x=>x.id!==item.id))}catch(e){setErrBandeja('No se ha podido descartar: '+(e?.message||e))}},[]);
   const initData=useCallback(async sd=>{if(!await confirmarSobrescritura(sd))return false;for(const[k,v]of[['ct5_cal',sd.cal],['ct5_ent',sd.ent],['ct5_roca',sd.roca],['ct5_lib',sd.lib],['ct5_t25',sd.t25],['ct5_treg',sd.treg],['ct5_dp',sd.dp],['ct5_tests',sd.tests||[DT]],['ct5_init',true]])await sv(k,v);setCal(sd.cal);setEnt(sd.ent);setRoca(sd.roca);setLib(sd.lib);setT25(sd.t25);setTreg(sd.treg);setDp(sd.dp);setTests(sd.tests||[DT]);setInit(true);return true},[]);
   const restaurarDeNube=useCallback(async porClave=>{
     const sd={cal:porClave.ct5_cal,ent:porClave.ct5_ent,roca:porClave.ct5_roca,lib:porClave.ct5_lib,
@@ -99,6 +119,19 @@ export default function App(){
     <header className="header"><div className="h-brand"><span style={{fontSize:22}}>🧗</span><b style={{fontSize:17}}>ClimbTrack</b><span className="h-ver">v6</span></div>
       {bkp.overdue&&<button className="bkp-warn" onClick={doExport}>⚠ Backup {bkp.never?'nunca':bkp.days+'d'}</button>}
     </header>
+    {pendientes.length>0&&<button onClick={()=>{setErrBandeja('');setVerBandeja(true)}} style={{display:'block',width:'calc(100% - 24px)',margin:'8px 12px 0',padding:'10px 12px',borderRadius:10,border:'1px solid #E8A838',background:'#E8A83822',color:'#E8A838',fontWeight:600,fontSize:13,fontFamily:'inherit',cursor:'pointer',textAlign:'left'}}>📬 Talaia propone {pendientes.length===1?'1 registro':pendientes.length+' registros'} · toca para revisar</button>}
+    <Modal open={verBandeja} onClose={()=>setVerBandeja(false)} title="Propuestas de Talaia">
+      {errBandeja&&<div style={{color:'#D4563A',fontSize:12,marginBottom:8}}>{errBandeja}</div>}
+      {pendientes.length===0&&<div style={{color:'#8B7D6B',fontSize:13}}>No hay nada pendiente.</div>}
+      {pendientes.map(item=><div key={item.id} className="card" style={{marginBottom:10,padding:12}}>
+        <div style={{fontWeight:700,marginBottom:6}}>{item.resumen||'Propuesta'}</div>
+        {(item.propuesta?.registros||[]).map((r,i)=><div key={i} style={{fontSize:12,color:'#8B7D6B',marginBottom:4,lineHeight:1.4}}>{describir(r)}</div>)}
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <button className="btn-primary" style={{flex:1,marginTop:0}} onClick={()=>aceptarPropuesta(item)}>Añadir</button>
+          <button className="btn-del" style={{flex:1,marginTop:0}} onClick={()=>descartarPropuesta(item)}>Descartar</button>
+        </div>
+      </div>)}
+    </Modal>
     <main className="content">
       {page==='dash'&&<DashP cal={cal} ent={ent} t25={t25} treg={treg} tests={tests}/>}
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}

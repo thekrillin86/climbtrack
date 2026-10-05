@@ -467,3 +467,42 @@ export async function descargarHistorico(id) {
 }
 
 export function estadoNube() { return { ...estado }; }
+
+/* ------------------------------------------------------------------
+   BANDEJA · propuestas de Talaia
+   Talaia nunca escribe en tus datos. Deja propuestas en
+   usuarios/{uid}/bandeja (a través del puente de Drive, un Apps Script
+   que corre con tu cuenta de Google) y la app te las enseña. Tú decides:
+   Añadir, que pasa por el mismo guardado que un registro escrito a mano,
+   o Descartar. Si no hay sesión en la nube, la bandeja está vacía y la
+   app funciona igual que siempre.
+   ------------------------------------------------------------------ */
+export async function leerBandeja() {
+  try {
+    const { auth, db, fs } = await cargar();
+    if (auth.authStateReady) await auth.authStateReady();
+    const u = auth.currentUser;
+    if (!u) return [];
+    const snap = await fs.getDocs(fs.collection(db, 'usuarios', u.uid, 'bandeja'));
+    const lista = [];
+    snap.forEach(d => {
+      const x = d.data() || {};
+      let p = null;
+      try { p = JSON.parse(x.json || 'null'); } catch { p = null; }
+      const ts = x.ts && typeof x.ts.toDate === 'function' ? x.ts.toDate().toISOString() : String(x.ts || '');
+      lista.push({ id: d.id, resumen: x.resumen || (p && p.resumen) || '', propuesta: p, ts });
+    });
+    return lista.sort((a, b) => a.ts.localeCompare(b.ts));
+  } catch (e) {
+    console.warn('[bandeja]', e);
+    return [];
+  }
+}
+
+export async function quitarDeBandeja(id) {
+  const { auth, db, fs } = await cargar();
+  if (auth.authStateReady) await auth.authStateReady();
+  const u = auth.currentUser;
+  if (!u) throw new Error('No hay sesión en la nube.');
+  await fs.deleteDoc(fs.doc(db, 'usuarios', u.uid, 'bandeja', id));
+}

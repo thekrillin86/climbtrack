@@ -370,6 +370,15 @@ src/
       foto congelada por semana. **Va a Firestore, no a Drive** — la carpeta
       `05.- APP ESCALADA` se quedó sin usar. Si quiere Drive de verdad, sigue
       pendiente.
+- [x] **Bandeja de Talaia** (05-10-2026): `src/bandeja.js` + `leerBandeja()` y
+      `quitarDeBandeja()` en `nube.js` + aviso bajo la cabecera en `App.jsx`.
+      Talaia (su asistente en Cowork) deja propuestas en
+      `usuarios/{uid}/bandeja` a través de un Apps Script en la cuenta de
+      Google de Juan (lee `datos/` cada hora y lo deja en su Drive; pasa a la
+      bandeja lo que Talaia deja en Drive). **Nada entra sin que Juan toque
+      Añadir**, y Añadir usa el mismo `s()` que los formularios. Cada registro
+      añadido lleva `origen: 'talaia:<id>'`. No convertir esto en
+      sincronización: la nube sigue sin bajar nada sola.
 - [x] **Chips de agarre en el formulario de rocódromo**: están en cada bloque
       del formulario de entrenamiento (`App.jsx`), y desde el 17-08-2026
       `cargaPorDetalle` los usa para repartir la carga de dedos.
