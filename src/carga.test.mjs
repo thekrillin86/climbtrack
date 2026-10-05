@@ -18,11 +18,17 @@
  * comportamiento nuevo es el correcto, se cambia el valor esperado aquí y se
  * explica por qué en el commit. Sirve para que ningún cambio pase
  * inadvertido, no para congelar el modelo.
+ *
+ * Las comprobaciones 8 a 10 son de `bandeja.js`, que no es el modelo de carga
+ * pero comparte suite porque es el ÚNICO camino por el que entran en sus datos
+ * registros que no ha escrito él a mano. Lo único que lo protege es
+ * `validarPropuesta()`, así que conviene que esté sujeta.
  */
 
 import assert from 'node:assert/strict';
 import { cargaPorDetalle, cargaPorActividad, perfilEnFecha } from './carga.js';
 import { clasificar } from './catalogo.js';
+import { validarPropuesta, prepararRegistro, yaAnadida, marcaOrigen } from './bandeja.js';
 
 /* ------------------------------------------------------------------
    Andamiaje mínimo
@@ -291,6 +297,115 @@ prueba('7 · la sesión conocida del 17-08 da los mismos números', () => {
     `sinClasificar sale ${c.sinClasificar} y tiene que ser 0: los cinco ejercicios clasifican.`);
   assert.equal(c.cargaDedos, true,
     `cargaDedos sale ${c.cargaDedos} y tiene que ser true: la sesión lleva suspensiones y bloque.`);
+});
+
+/* ==================================================================
+   8 · LA BANDEJA RECHAZA LAS PROPUESTAS MALFORMADAS
+   ================================================================== */
+prueba('8 · la bandeja rechaza las propuestas malformadas', () => {
+  // validarPropuesta() es la única puerta entre lo que deja Talaia en la nube
+  // y los datos de Juan. Si deja pasar algo, entra en su histórico en cuanto
+  // toque Añadir. Cada caso tiene que devolver un texto, nunca null.
+  const malas = [
+    [null, 'propuesta nula'],
+    ['vaya propuesta', 'propuesta que no es un objeto'],
+    [{}, 'sin lista de registros'],
+    [{ registros: [] }, 'lista de registros vacía'],
+    [{ registros: 'ct5_ent' }, 'registros que no son una lista'],
+    [{ registros: [{ clave: 'ct5_inventada', registro: { fecha: '2026-10-05' } }] }, 'clave fuera de las ocho'],
+    [{ registros: [{ clave: 'ct5_cal', registro: null }] }, 'registro nulo'],
+    [{ registros: [{ clave: 'ct5_cal', registro: ['Cardio'] }] }, 'registro que es una lista'],
+    [{ registros: [{ clave: 'ct5_cal', registro: { fecha: '5-10-2026', activitat: 'Cardio' } }] }, 'fecha en otro formato'],
+    [{ registros: [{ clave: 'ct5_cal', registro: { fecha: '2026-10-05', activitat: 'Pilates' } }] }, 'actividad que no existe en ACTS'],
+    [{ registros: [{ clave: 'ct5_ent', registro: { fecha: '2026-10-05', tipo: 'Crossfit', bloques: [{}] } }] }, 'tipo de entrenamiento inválido'],
+    [{ registros: [{ clave: 'ct5_ent', registro: { fecha: '2026-10-05', tipo: 'Rocòdrom' } }] }, 'entrenamiento sin bloques'],
+    [{ registros: [{ clave: 'ct5_ent', registro: { fecha: '2026-10-05', tipo: 'Rocòdrom', bloques: [] } }] }, 'entrenamiento con bloques vacíos'],
+  ];
+  for (const [p, que] of malas) {
+    const err = validarPropuesta(p);
+    assert.equal(typeof err, 'string',
+      `una propuesta con ${que} se ha ACEPTADO (validarPropuesta devolvió ${JSON.stringify(err)}). ` +
+      `Eso entra en los datos de Juan en cuanto toque Añadir.`);
+  }
+
+  // Y una buena no se rechaza, que si no la puerta no sirve de nada.
+  const buena = { registros: [{ clave: 'ct5_cal', registro: { fecha: '2026-10-04', activitat: 'Rocòdrom', fatiga_fin: 3 } }] };
+  assert.equal(validarPropuesta(buena), null,
+    `una propuesta correcta se ha rechazado con «${validarPropuesta(buena)}». Si el criterio ha ` +
+    `cambiado a propósito, actualiza este caso; si no, la bandeja no deja entrar nada.`);
+});
+
+/* ==================================================================
+   9 · UNA PROPUESTA BUENA SE PREPARA COMO LA DEJARÍA EL FORMULARIO
+   ================================================================== */
+prueba('9 · una propuesta buena se prepara como la dejaría el formulario', () => {
+  // prepararRegistro() tiene que dejar el registro igual que EntP.sub():
+  // carga de bloque = minutos × RPE, min_total y carga_total sumados, y los
+  // ejercicios en blanco fuera. Si las dos lógicas se separan, un día añadido
+  // desde la bandeja puntúa distinto que el mismo día escrito a mano.
+  let n = 0;
+  const xi = () => 'id_prueba_' + (++n);
+  const entrada = {
+    id: 'ID_QUE_VIENE_DE_FUERA', origen: 'talaia:otra_cosa', fecha: '2026-10-04', tipo: 'Rocòdrom', fatiga_fin: 3,
+    bloques: [
+      { tipo: 'General', ejercicios: ['Movilidad hombro', '   '], minutos: 15, rpe: 3 },
+      { tipo: 'Específica', ejercicios: ['Bloque 25 mov'], minutos: 60, rpe: 7, agarres: ['canto'] },
+    ],
+  };
+  const r = prepararRegistro('ct5_ent', entrada, 'p1', xi);
+
+  assert.equal(r.carga_total, 465,
+    `carga_total sale ${r.carga_total} y tiene que ser 465: 15×3 + 60×7, igual que el formulario.`);
+  assert.equal(r.min_total, 75,
+    `min_total sale ${r.min_total} y tiene que ser 75: 15 + 60.`);
+  assert.deepEqual(r.bloques.map(b => b.carga), [45, 420],
+    `las cargas por bloque salen ${JSON.stringify(r.bloques.map(b => b.carga))} y tienen que ser ` +
+    `[45,420]: minutos × RPE de cada uno.`);
+  assert.deepEqual(r.bloques[0].ejercicios, ['Movilidad hombro'],
+    `el ejercicio en blanco no se ha filtrado: ${JSON.stringify(r.bloques[0].ejercicios)}. El ` +
+    `formulario los quita con filter(e=>e.trim()), y uno vacío no clasifica y se lleva su parte ` +
+    `de los minutos del bloque (ver comprobación 4).`);
+
+  // Lo que una propuesta NO puede imponer: su propio id ni su marca de origen.
+  // Los dos se reescriben después del spread, y de eso depende que la
+  // deduplicación no se pueda falsear desde fuera.
+  assert.equal(r.id, 'id_prueba_1',
+    `el id sale ${r.id}: tiene que generarse con xi(), no venir en la propuesta.`);
+  assert.equal(r.origen, marcaOrigen('p1'),
+    `el origen sale ${r.origen} y tiene que ser ${marcaOrigen('p1')}, el de la propuesta que se ` +
+    `está añadiendo — no el que trajera el registro.`);
+  assert.ok(r.bloques.every(b => /^id_prueba_/.test(b.id)),
+    `algún bloque no ha estrenado id: ${JSON.stringify(r.bloques.map(b => b.id))}. Si se reutilizan ` +
+    `los del original, dos sesiones comparten ids de bloque.`);
+});
+
+/* ==================================================================
+   10 · UNA PROPUESTA YA AÑADIDA SE RECONOCE Y NO SE DUPLICA
+   ================================================================== */
+prueba('10 · una propuesta ya añadida se reconoce y no se duplica', () => {
+  // Si se añade una propuesta y luego falla el borrado en la nube (sin
+  // cobertura), al volver a abrir la app sigue en la bandeja. yaAnadida() es
+  // lo que evita que Juan la añada dos veces.
+  const xi = () => 'id_' + Math.random().toString(36).slice(2, 9);
+  const añadido = prepararRegistro('ct5_ent', { fecha: '2026-10-04', tipo: 'Rocòdrom', bloques: [{ tipo: 'Específica', ejercicios: ['Bloque'], minutos: 60, rpe: 7 }] }, 'p1', xi);
+  const colecciones = {
+    ct5_cal: [{ id: 'a', fecha: '2026-10-04', activitat: 'Rocòdrom' }],   // escrito a mano, sin origen
+    ct5_ent: [añadido],
+    ct5_roca: [], ct5_lib: [], ct5_t25: [], ct5_treg: [], ct5_dp: [], ct5_tests: [],
+  };
+
+  assert.equal(yaAnadida('p1', colecciones), true,
+    `la propuesta p1 ya está en ct5_ent con origen ${añadido.origen} y yaAnadida() dice que no. ` +
+    `Sin eso, una propuesta que no se pudo borrar de la nube se añade dos veces.`);
+  assert.equal(yaAnadida('p2', colecciones), false,
+    `yaAnadida() da por añadida la propuesta p2, que no está. Así desaparecerían propuestas sin ` +
+    `haberlas añadido nunca.`);
+  assert.equal(yaAnadida('p1', { ct5_cal: colecciones.ct5_cal }), false,
+    `yaAnadida() encuentra p1 en una colección que solo tiene registros escritos a mano. La marca ` +
+    `de origen tiene que ser exacta.`);
+  assert.equal(yaAnadida('p1', {}), false,
+    `con las colecciones vacías yaAnadida() dice que sí. En una instalación nueva eso se tragaría ` +
+    `todas las propuestas sin añadir ninguna.`);
 });
 
 /* ------------------------------------------------------------------
