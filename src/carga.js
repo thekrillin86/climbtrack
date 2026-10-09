@@ -490,9 +490,9 @@ function fatigaDe(dia) {
 
 export function cargaPorActividad(dia) {
   const a = (dia?.activitat || '').trim().toLowerCase();
-  let coef = null;
+  let coef = null, clave = null;
   for (const k of Object.keys(PARAMS.porActividad)) {
-    if (a.includes(k)) { coef = PARAMS.porActividad[k]; break; }
+    if (a.includes(k)) { coef = PARAMS.porActividad[k]; clave = k; break; }
   }
   if (!coef) return null;
   const ff = fatigaDe(dia);                        // respeta un 0 legitimo
@@ -503,22 +503,30 @@ export function cargaPorActividad(dia) {
   // día se etiquetaba 'actividad+reloj' mientras tiraba de la duración por
   // defecto. Decía que usaba el reloj sin usarlo.
   const s = (dia?.suunto && typeof dia.suunto === 'object') ? dia.suunto : null;
-  const minReloj = Number(s?.min) > 0 ? Number(s.min) : null;
+  // En roca los minutos del reloj son la mañana entera en el sector, con los
+  // descansos de 40 minutos entre pegues: un día de 4 horas pesaría cuatro veces
+  // uno sin reloj y dejaría de compararse con los demás. Se cuentan los 60
+  // minutos por defecto, que se parecen a lo que escala de verdad. Es su regla
+  // (`claude/proyecto-amapolla.md`) y desde el 09-10-2026 la aplica el código.
+  const minReloj = (clave !== 'roca' && Number(s?.min) > 0) ? Number(s.min) : null;
   const min = minReloj ?? PARAMS.minutosPorDefecto;
   const esc = PARAMS.escalaActividad;              // puente con cargaPorDetalle
   return redondear({
     dedos:     (min / 60) * coste * coef.dedos * PARAMS.escalaBase * esc.dedos,
     cuerpo:    (min / 60) * costeEsfuerzo(i) * coef.cuerpo * PARAMS.escalaBase * esc.cuerpo,
-    sistemico: cargaSistemica(s, coef, i, min) * esc.sistemico,
+    sistemico: cargaSistemica(coef, i, min) * esc.sistemico,
     pico: i, porAgarre: {}, estimado: true,
     cargaDedos: coef.dedos >= PARAMS.umbralCanalDedos,
-    origen: (minReloj || Number(s?.kcal) > 0) ? 'actividad+reloj' : 'actividad',
+    origen: minReloj ? 'actividad+reloj' : 'actividad',
   });
 }
 
-/** Si hay datos del Suunto se usan; si no, se estima. */
-function cargaSistemica(s, coef, i, min) {
-  if (s && s.kcal > 0) return (s.kcal / 100) * (s.hr_med ? Math.min(s.hr_med / 100, 2) : 1);
+/** Duración × fatiga, como los otros dos canales. Del reloj solo entran los
+ *  minutos (ya vienen en `min`). Las kcal y el pulso se guardan, pero no
+ *  puntúan: con ellas el sistémico salía unas 3 veces más alto que con la
+ *  fatiga (24-09: 31,5 frente a 9,3), y un mismo día valía distinto según
+ *  llevara el reloj o no. Quitado por decisión de Juan el 09-10-2026. */
+function cargaSistemica(coef, i, min) {
   return (min / 60) * (i ** PARAMS.exponente) * coef.sistemico * PARAMS.escalaBase;
 }
 

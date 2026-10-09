@@ -275,8 +275,8 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
   const sorted=useMemo(()=>[...data].filter(r=>!flt||r.activitat===flt).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data,flt]);
   /* Datos del reloj. La columna `suunto` ya existía en ct5_cal y
      cargaPorActividad ya sabe usarla: con minutos reales mide la duración en
-     vez de asumir 60, y con kcal el sistémico sale del gasto en vez de
-     estimarse desde la fatiga. Lo único que faltaba era poder escribirlos.
+     vez de asumir 60. Las kcal y el pulso se guardan pero no puntúan desde
+     el 09-10-2026: el sistémico es duración × fatiga, como los otros canales.
      Se guarda con la misma forma que devuelve parseSuunto(): {min, kcal,
      hr_med, hr_max}. */
   const sS=(f,v)=>setForm(x=>({...x,suunto:{...(x.suunto||{}),[f]:v}}));

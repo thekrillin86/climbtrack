@@ -23,6 +23,9 @@
  * pero comparte suite porque es el ÚNICO camino por el que entran en sus datos
  * registros que no ha escrito él a mano. Lo único que lo protege es
  * `validarPropuesta()`, así que conviene que esté sujeta.
+ *
+ * La 11 fija la decisión del 09-10-2026: el sistémico ya no sale de las kcal
+ * del reloj, y en roca no cuentan los minutos del reloj.
  */
 
 import assert from 'node:assert/strict';
@@ -406,6 +409,41 @@ prueba('10 · una propuesta ya añadida se reconoce y no se duplica', () => {
   assert.equal(yaAnadida('p1', {}), false,
     `con las colecciones vacías yaAnadida() dice que sí. En una instalación nueva eso se tragaría ` +
     `todas las propuestas sin añadir ninguna.`);
+});
+
+/* ==================================================================
+   11 · EL RELOJ SOLO APORTA MINUTOS, Y EN ROCA NI ESO
+   ================================================================== */
+prueba('11 · las kcal no puntúan y en roca no cuentan los minutos del reloj', () => {
+  // Decisión de Juan del 09-10-2026. Con kcal, el sistémico de un cardio salía
+  // unas 3 veces más alto que con la fatiga (24-09: 31,5 frente a 9,3), y un
+  // mismo día valía distinto según llevara el reloj o no. Ahora es duración ×
+  // fatiga, como los otros canales.
+  const dia = (activitat, suunto) => ({ fecha: '2026-09-24', activitat, fatiga_fin: 2, ...(suunto ? { suunto } : {}) });
+
+  const conKcal = cargaPorActividad(dia('Cardio', { min: 50, kcal: 700, hr_med: 140 }));
+  const soloMin = cargaPorActividad(dia('Cardio', { min: 50 }));
+  assert.ok(soloMin.sistemico > 0, `un cardio de 50 minutos da sistémico ${soloMin.sistemico}: no puede ser cero.`);
+  assert.equal(conKcal.sistemico, soloMin.sistemico,
+    `el mismo cardio de 50 minutos da sistémico ${conKcal.sistemico} con kcal y pulso, y ${soloMin.sistemico} ` +
+    `solo con los minutos. Las kcal han vuelto a puntuar.`);
+
+  const corto = cargaPorActividad(dia('Cardio', { min: 25 }));
+  assert.ok(soloMin.sistemico > corto.sistemico,
+    `50 minutos de cardio (${soloMin.sistemico}) no pesan más que 25 (${corto.sistemico}). Fuera de la roca, ` +
+    `los minutos del reloj tienen que seguir contando.`);
+
+  // En roca el reloj marca la mañana entera en el sector, con descansos de 40
+  // minutos: se cuentan los 60 por defecto (regla de claude/proyecto-amapolla.md).
+  const rocaReloj = cargaPorActividad(dia('Roca', { min: 240, kcal: 900, hr_med: 95 }));
+  const rocaSin = cargaPorActividad(dia('Roca'));
+  for (const k of CANALES) {
+    assert.equal(rocaReloj[k], rocaSin[k],
+      `un día de roca con 240 minutos de reloj da ${k} ${rocaReloj[k]}, y sin reloj ${rocaSin[k]}. En roca ` +
+      `los minutos del reloj no deben contar: un día de sector pesaría cuatro veces más que los otros.`);
+  }
+  assert.equal(rocaReloj.origen, 'actividad',
+    `un día de roca con reloj se etiqueta «${rocaReloj.origen}», pero el reloj ya no le cambia nada.`);
 });
 
 /* ------------------------------------------------------------------

@@ -248,6 +248,21 @@ solo la tabula alrededor de la regleta de referencia. Más allá de
 Todos los parámetros están en `PARAMS`, arriba del fichero, a la vista y
 editables. Mantenlo así: nada de constantes escondidas a mitad de función.
 
+**f) El reloj solo aporta minutos, y en roca ni eso** (09-10-2026, decisión de
+Juan). `cargaPorActividad` calcula el sistémico como duración × fatiga, igual
+que los otros dos canales. Las kcal y el pulso del Suunto se guardan, pero no
+puntúan: con ellas el sistémico de un cardio salía unas 3 veces más alto
+(24-09: 31,5 frente a 9,3) y el mismo día valía distinto con reloj o sin él.
+
+En **roca** tampoco cuentan los minutos del reloj: son la mañana entera en el
+sector, con descansos de 40 minutos entre pegues, y un día de 4 horas pesaba
+unas cuatro veces más que uno sin reloj en los tres canales. Se cuentan los 60
+minutos por defecto, que se parecen a lo que escala de verdad.
+
+Medido sobre su histórico al decidirlo: cambian 31 días, sobre todo 11 de
+cardio y 9 de roca de abril y mayo. El puente de (d) no se mueve: solo 3 de los
+47 días con los dos cálculos llevan kcal. Lo sujeta la comprobación 11.
+
 ---
 
 ## 5. Taxonomía de agarres — es la de Juan, son ocho
