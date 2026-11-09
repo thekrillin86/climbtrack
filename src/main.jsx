@@ -10,7 +10,11 @@ import '@fontsource/barlow-condensed/latin-700.css';
 import App from './App.jsx';
 import { CSS } from './styles.js';
 import { aplicarTema } from './tema.js';
-import { get, set } from 'https://esm.sh/idb-keyval@6';
+// Almacén de los datos (IndexedDB 'keyval-store' / 'keyval', el de siempre).
+// Va empaquetado con la app y con versión fija: antes se bajaba de esm.sh en
+// cada arranque, así que la app no abría sin cobertura y cualquier cambio en
+// ese servidor llegaba directo al código que lee y escribe tus datos.
+import { get, set } from 'idb-keyval';
 window.storage = {
   get: async (k) => { try { const v = await get(k); return v != null ? { key: k, value: v } : null; } catch { return null; } },
   set: async (k, v) => { try { await set(k, v); return { key: k, value: v }; } catch { return null; } }
