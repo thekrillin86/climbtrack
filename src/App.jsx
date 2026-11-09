@@ -13,8 +13,8 @@ import CiclosP from './CiclosP.jsx';
 import { m, AnimatePresence } from 'motion/react';
 import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
 import { IconoActividad, Logo } from './iconos.jsx';
-import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, GraficaCurva, GraficaTindeq, tablaTindeq, fechaLarga } from './graficas.jsx';
-import { GaugeIcon, ChartLineIcon, MicroscopeIcon } from '@phosphor-icons/react';
+import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, Ranking, GraficaPeso, GraficaCurva, GraficaTindeq, GraficaBarras, tablaTindeq, fechaLarga } from './graficas.jsx';
+import { GaugeIcon, ChartLineIcon, MicroscopeIcon, MapPinIcon, TrophyIcon } from '@phosphor-icons/react';
 import { useTema, cambiarTema } from './tema.js';
 
 const MINFO={
@@ -595,10 +595,47 @@ function StP({cal,ent,roca,lib,dp,t25,treg}){const[tab,setTab]=useState('gen');
   const apt=useMemo(()=>{const c={};cal.forEach(r=>{if(r.activitat)c[r.activitat]=(c[r.activitat]||0)+1});return Object.entries(c).map(([n,v])=>({name:n,value:v})).sort((a,b)=>b.value-a.value)},[cal]);
   const ts=useMemo(()=>{const c={};roca.forEach(r=>{if(r.lloc)c[r.lloc]=(c[r.lloc]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([s,v])=>({sector:s,visitas:v}))},[roca]);
   const encN=roca.filter(r=>r.encadene==='SÍ'||r.encadene==='SI'||r.encadene===true).length;
+  const diasAct=apt.reduce((n,x)=>n+x.value,0);
+  const ratio=roca.length?Math.round(encN/roca.length*100):0;
+  const porFecha=a=>[...a].sort((x,y)=>(y.fecha||'').localeCompare(x.fecha||''));
     return(<div className="page"><h2 className="p-title">Estadísticas</h2>
     <div className="tabs"><button className={`tb${tab==='gen'?' ac':''}`} onClick={()=>setTab('gen')}>General</button><button className={`tb${tab==='fza'?' ac':''}`} onClick={()=>setTab('fza')}>Fuerza</button><button className={`tb${tab==='esc'?' ac':''}`} onClick={()=>setTab('esc')}>Escalada</button></div>
-    {tab==='gen'&&<>{vpa.length>0&&<div className="card"><div className="card-t">Vías/Año</div><ResponsiveContainer width="100%" height={180}><BarChart data={vpa}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="anyo" stroke="#8B7D6B"/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Bar dataKey="total" fill="#E8A838"/></BarChart></ResponsiveContainer></div>}{apt.length>0&&<div className="card"><div className="card-t">Actividad</div><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={apt} cx="50%" cy="50%" outerRadius={65} dataKey="value" label={({name,value})=>`${name.slice(0,6)}(${value})`} labelLine={false} style={{fontSize:9}}>{apt.map((_,i)=><Cell key={i} fill={CL[i%CL.length]}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer></div>}</>}
-    {tab==='fza'&&<>{t25.length>2&&<div className="card"><div className="card-t">25mm</div><ResponsiveContainer width="100%" height={200}><LineChart data={[...t25].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),i:Number(r.esq)||0,d:Number(r.dre)||0}))}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={9}/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Legend/><Line dataKey="i" stroke="#E8A838" name="Izq" dot={false}/><Line dataKey="d" stroke="#3A8FB7" name="Dch" dot={false}/></LineChart></ResponsiveContainer></div>}{dp.length>2&&<div className="card"><div className="card-t">Peso</div><ResponsiveContainer width="100%" height={160}><AreaChart data={[...dp].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),p:Number(r.peso)||0}))}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B"/><YAxis domain={['auto','auto']} stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Area dataKey="p" stroke="#9B6BB7" fill="#9B6BB733" name="kg"/></AreaChart></ResponsiveContainer></div>}</>}
-        {tab==='esc'&&<>{ts.length>0&&<div className="card"><div className="card-t">Top Sectores</div><ResponsiveContainer width="100%" height={220}><BarChart data={ts} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis type="number" stroke="#8B7D6B"/><YAxis type="category" dataKey="sector" stroke="#8B7D6B" width={80} fontSize={10}/><Tooltip contentStyle={TTS}/><Bar dataKey="visitas" fill="#6B9F4A"/></BarChart></ResponsiveContainer></div>}<div className="card"><div className="card-t">Ratio encadene</div><div className="enc-st"><div className="enc-b"><div className="enc-n g">{encN}</div><div className="enc-lb">Enc.</div></div><div className="enc-b"><div className="enc-n r">{roca.length-encN}</div><div className="enc-lb">Proy.</div></div><div className="enc-b"><div className="enc-n a">{roca.length?Math.round(encN/roca.length*100):0}%</div><div className="enc-lb">Ratio</div></div></div></div></>}
+    {tab==='gen'&&<>
+      {vpa.length>0&&<Tarjeta titulo="Vías encadenadas por año" Icono={BookOpenTextIcon} i={0}>
+        <ConTabla tabla={<Tabla titulo="Vías encadenadas por año" filas={[...vpa].reverse()} cols={[{k:'anyo',t:'Año'},{k:'total',t:'Vías'}]}/>}>
+          <GraficaBarras datos={vpa} kx="anyo" ky="total" nombre="Vías" etiqueta="Vías encadenadas por año"/>
+        </ConTabla>
+        <div className="note" style={{marginTop:6}}>Cuenta lo que hay en la Libreta, que solo recoge encadenes de 7a en adelante.</div>
+      </Tarjeta>}
+      {apt.length>0&&<Tarjeta titulo="Días por actividad" Icono={CalendarCheckIcon} i={1}>
+        <Ranking etiqueta="Días por actividad" items={apt.map(x=>({k:x.name,nombre:x.name,a:x.name,v:x.value,unidad:` · ${Math.round(x.value/diasAct*100)} %`}))}/>
+        <div className="note" style={{marginTop:12}}>Días apuntados en Rutina con cada actividad, de todo el histórico ({diasAct} en total).</div>
+      </Tarjeta>}
+    </>}
+    {tab==='fza'&&<>
+      {t25.length>2&&<Tarjeta titulo="Tindeq 25 mm" Icono={RulerIcon} c="var(--izq)" i={0}>
+        <ConTabla tabla={tablaTindeq(t25)}><GraficaTindeq filas={t25}/></ConTabla>
+      </Tarjeta>}
+      {dp.length>2&&<Tarjeta titulo="Peso" Icono={ScalesIcon} c="var(--peso)" i={1}>
+        <ConTabla tabla={<Tabla titulo="Pesos registrados" filas={porFecha(dp)} cols={[{k:'fecha',t:'Fecha',f:v=>fechaLarga(v)},{k:'peso',t:'kg',f:v=>v||'—'},{k:'grasa',t:'% grasa',f:v=>v||'—'}]}/>}>
+          <GraficaPeso filas={dp}/>
+        </ConTabla>
+      </Tarjeta>}
+    </>}
+    {tab==='esc'&&<>
+      {ts.length>0&&<Tarjeta titulo="Sectores con más vías" Icono={MapPinIcon} i={0}>
+        <Ranking etiqueta="Vías apuntadas por sector" items={ts.map(x=>({k:x.sector,nombre:x.sector,v:x.visitas,unidad:x.visitas===1?' vía':' vías'}))}/>
+        <div className="note" style={{marginTop:12}}>Vías apuntadas en Roca en cada sector: los ocho con más.</div>
+      </Tarjeta>}
+      <Tarjeta titulo="Ratio de encadene" Icono={TrophyIcon} i={1}>
+        <div className="tiles">
+          <div className="tile"><b>{encN}</b><span>Encadenadas</span></div>
+          <div className="tile"><b>{roca.length-encN}</b><span>Proyectos</span></div>
+          <div className="tile"><b>{ratio}%</b><span>Ratio</span></div>
+        </div>
+        <div className="rk-track" style={{marginTop:14,height:12}} aria-hidden="true"><span className="rk-fill" style={{'--v':ratio+'%','--c':'var(--brand)'}}/></div>
+        <div className="note" style={{marginTop:10}}>Sobre las {roca.length} vías apuntadas en Roca: las marcadas como encadenadas frente al resto.</div>
+      </Tarjeta>
+    </>}
   </div>);
 }

@@ -12,7 +12,7 @@
  */
 import { useId, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, ComposedChart, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ComposedChart, LineChart, Line, Area, BarChart, Bar, LabelList, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { useReducedMotion } from 'motion/react';
 import { TableIcon, ChartLineIcon } from '@phosphor-icons/react';
@@ -326,6 +326,25 @@ export function GraficaCurva({ puntos, alto = 210 }) {
               dot={{ r: 4.5, fill: p.fuerza, stroke: p.card, strokeWidth: 1.5 }}
               activeDot={{ r: 6.5, stroke: p.card, strokeWidth: 2 }} isAnimationActive={ej.anim} />
       </LineChart>
+    </Grafica>
+  );
+}
+
+/* ---------------- barras verticales con su número encima ---------------- */
+export function GraficaBarras({ datos, kx, ky, nombre, unidad = '', alto = 190, etiqueta }) {
+  const ej = useEjes(); const { p } = ej;
+  return (
+    <Grafica alto={alto} etiqueta={etiqueta}>
+      <BarChart data={datos} margin={{ top: 24, right: 8, bottom: 0, left: 0 }}>
+        <CartesianGrid {...ej.grid} />
+        <XAxis dataKey={kx} {...ej.x} />
+        <YAxis allowDecimals={false} {...ej.y} />
+        <Tooltip cursor={ej.cursorBanda} isAnimationActive={false}
+                 content={<Tip cab={d => String(d[kx])} filas={d => [{ c: p.brand, t: nombre, v: `${d[ky]}${unidad}` }]} />} />
+        <Bar dataKey={ky} fill={p.brand} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={ej.anim}>
+          <LabelList dataKey={ky} position="top" fill={p.ink} fontSize={13} fontWeight={700} />
+        </Bar>
+      </BarChart>
     </Grafica>
   );
 }
