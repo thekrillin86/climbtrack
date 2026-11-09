@@ -13,7 +13,8 @@ import CiclosP from './CiclosP.jsx';
 import { m, AnimatePresence } from 'motion/react';
 import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
 import { IconoActividad, Logo } from './iconos.jsx';
-import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, fechaLarga } from './graficas.jsx';
+import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, GraficaCurva, fechaLarga } from './graficas.jsx';
+import { GaugeIcon, ChartLineIcon, MicroscopeIcon } from '@phosphor-icons/react';
 import { useTema, cambiarTema } from './tema.js';
 
 const MINFO={
@@ -540,11 +541,24 @@ function TestP({tests,save}){
   const rfdTests=sorted.filter(t=>t.RFD&&Number(t.RFD)>0);
   const lastRFD=rfdTests[0];
   const rfdDays=lastRFD?Math.round((new Date(td())-new Date(lastRFD.fecha+'-01'))/864e5):999;
-  return(<div className="page"><div className="p-tr"><h2 className="p-title">Tests ({tests.length})</h2><button className="btn-sm" onClick={()=>{setEid(null);setForm(bl);setShow(true)}}>+ Nuevo</button></div>
-    {rfdDays>120&&<div className="tendon-banner amber"><span>🔬</span><div style={{fontSize:12}}><b>Re-test RFD pendiente</b><div>Hace {lastRFD?Math.round(rfdDays/30)+' meses':'mucho'} sin medir RFD. Es tu punto ciego — re-testa al cerrar el mesociclo.</div></div></div>}
-    <div className="card"><div className="card-t">Actual — {latest.fecha}</div><div className="profile-grid">{[['RP',latest.gradoRP,'a'],['Obj',latest.gradoObj,'r'],['Peso',latest.peso+'kg'],['MHT14',latest.MHT14+'s'],['MED40',latest.MED40+'mm'],['MAW5',latest.MAW5+'kg'],['OT',latest.OT+'%','a'],['CF',latest.CF+'%'],['Fmáx',latest.fmaxRegleta+'kg']].map(([l,v,cl])=><div key={l} className="pf"><span className="pf-l">{l}</span><span className={`pf-v${cl?' '+cl:''}`}>{v}</span></div>)}</div></div>
-    {latest.curva?.length>0&&<div className="card"><div className="card-t">Curva Individual</div><ResponsiveContainer width="100%" height={170}><LineChart data={latest.curva.map(cu=>({i:cu.i,t:cu.t||cu.tiempo}))}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="i" stroke="#8B7D6B" reversed/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Line dataKey="t" stroke="#E8A838" strokeWidth={2} name="s"/></LineChart></ResponsiveContainer></div>}
-    <div className="card"><div className="card-t">Historial — toca para editar</div>{sorted.map((t,i)=><div key={t.id||i} className="list-row" onClick={()=>edit(t)}><div className="lr-l"><span className="lr-e">🧪</span><div><div className="lr-m">{t.fecha} — {t.gradoRP}</div><div className="lr-s">MHT14:{t.MHT14}s · MAW5:{t.MAW5}kg · OT:{t.OT}%</div></div></div><span className="lr-d">{t.peso}kg</span></div>)}</div>
+  // Curva: la del test más reciente que la tenga rellena (dos puntos o más).
+  // Si no es el último test, la pantalla lo dice.
+  const ptsCurva=t=>(Array.isArray(t?.curva)?t.curva:[]).map(cu=>({i:Math.round(Number(cu.i)*100),t:Number(cu.t||cu.tiempo)||null})).filter(x=>x.t&&x.i>0);
+  const conCurva=sorted.find(t=>ptsCurva(t).length>=2);
+  const pf=(v,u='')=>v==null||v===''||Number.isNaN(v)?null:`${v}${u}`;
+  return(<div className="page"><div className="p-tr"><h2 className="p-title">Tests ({tests.length})</h2><button type="button" className="btn-sm" onClick={()=>{setEid(null);setForm(bl);setShow(true)}}><PlusIcon size={18} weight="bold"/>Nuevo</button></div>
+    {rfdDays>120&&<div className="tendon-banner amber"><MicroscopeIcon size={24} weight="duotone"/><div><b>Re-test RFD pendiente</b><div>Hace {lastRFD?Math.round(rfdDays/30)+' meses':'mucho'} sin medir RFD. Es tu punto ciego — re-testa al cerrar el mesociclo.</div></div></div>}
+    <Tarjeta titulo="Actual" Icono={GaugeIcon} c="var(--fuerza)" i={0} extra={<span className="chip">{fechaLarga(latest.fecha)}</span>}>
+      <div className="profile-grid">{[['RP',pf(latest.gradoRP),'a'],['Obj',pf(latest.gradoObj),'r'],['Peso',pf(latest.peso,' kg')],['MHT14',pf(latest.MHT14,' s')],['MED40',pf(latest.MED40,' mm')],['MAW5',pf(latest.MAW5,' kg')],['OT',pf(latest.OT,' %'),'a'],['CF',pf(latest.CF,' %')],['Fmáx',pf(latest.fmaxRegleta,' kg')]].map(([l,v,cl])=><div key={l} className="pf"><span className="pf-l">{l}</span><span className={`pf-v${v==null?' falta':cl?' '+cl:''}`}>{v??'—'}</span></div>)}</div>
+      <div className="note" style={{marginTop:10}}>Los valores del test más reciente. Un «—» es un campo que ese test no tiene rellenado.</div>
+    </Tarjeta>
+    {conCurva&&<Tarjeta titulo="Curva individual" Icono={ChartLineIcon} c="var(--fuerza)" i={1} extra={<span className="chip">{fechaLarga(conCurva.fecha)}</span>}>
+      <ConTabla tabla={<Tabla titulo="Curva individual" filas={ptsCurva(conCurva)} cols={[{k:'i',t:'Intensidad',f:v=>v+' %'},{k:'t',t:'Segundos al fallo'}]}/>}>
+        <GraficaCurva puntos={ptsCurva(conCurva)}/>
+      </ConTabla>
+      <div className="note" style={{marginTop:6}}>En vertical, los segundos que aguantas colgado hasta el fallo; en horizontal, la intensidad en % de tu fuerza máxima, de más a menos.{conCurva!==latest&&<> Tu último test, el de {fechaLarga(latest.fecha)}, no tiene la curva rellenada: esta es la del {fechaLarga(conCurva.fecha)}.</>}</div>
+    </Tarjeta>}
+    <div className="card" style={{'--i':2}}><div className="card-t">Historial — toca para editar</div>{sorted.map((t,i)=><div key={t.id||i} className="list-row" onClick={()=>edit(t)}><div className="lr-l"><span className="lr-e" style={{'--c':'var(--fuerza)'}}><FlaskIcon size={22} weight="duotone"/></span><div><div className="lr-m">{t.fecha} — {t.gradoRP}</div><div className="lr-s">MHT14 {pf(t.MHT14,' s')??'—'} · MAW5 {pf(t.MAW5,' kg')??'—'} · OT {pf(t.OT,' %')??'—'}</div></div></div><span className="lr-d">{t.peso}kg</span></div>)}</div>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?`Editar test ${form.fecha||''}`:'Nuevo Test'}>
       <F label="Fecha (ej. 2026-07)" value={form.fecha} onChange={v=>setForm({...form,fecha:v})}/>
       <div className="row-2"><F label="Peso" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number"/><F label="RP" value={form.gradoRP} onChange={v=>setForm({...form,gradoRP:v})}/></div>
