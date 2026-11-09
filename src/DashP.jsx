@@ -13,12 +13,22 @@
  *   NUEVO  una recomendación con el porqué escrito al lado
  */
 
-import React, { useMemo } from 'react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { animate, useReducedMotion } from 'motion/react';
+import {
+  HandIcon, PersonSimpleIcon, HeartbeatIcon, GaugeIcon, HourglassMediumIcon, CaretDownIcon,
+  FeatherIcon, FireIcon, BedIcon,
+} from '@phosphor-icons/react';
 import { seriesCarga, fatigaAcumulada, PARAMS } from './carga.js';
 import { td } from './lib.js';
+import { ConTabla, Tabla, Tarjeta, DIAS, aT } from './graficas.jsx';
 
-const COL = { dedos: '#E8A838', cuerpo: '#3A8FB7', sistemico: '#6B9F4A', mal: '#D4563A', bien: '#6B9F4A', medio: '#E8A838' };
+/* Aspecto (noviembre 2026): el radar pasa a cuatro barras que se abren y
+   cuentan de dónde sale cada número, el anillo se dibuja en SVG y la ventana
+   tendinosa enseña los 7 días que mira. Los cálculos de abajo no cambian. */
+
+// Colores por papel (tema.js): canales y estado. El estado va siempre con texto.
+const COL = { dedos: 'var(--dedos)', cuerpo: 'var(--cuerpo)', sistemico: 'var(--sist)', mal: 'var(--badMark)', bien: 'var(--goodMark)', medio: 'var(--warnMark)' };
 
 /* --------- frescura: se calibra contra su propio historial ---------
    La referencia tiene que estar en las MISMAS unidades que aquello con lo
@@ -189,6 +199,37 @@ const TXT = {
   descanso: { t: 'Hoy toca descansar',      c: COL.mal },
 };
 
+const NIVEL = {
+  red:   { t: 'Reciente',    c: 'var(--badMark)' },
+  amber: { t: 'En ventana',  c: 'var(--warnMark)' },
+  green: { t: 'Descansados', c: 'var(--goodMark)' },
+};
+const VEREDICTO = {
+  fuerte:   { chip: 'Fuerte',   Icono: FireIcon },
+  suave:    { chip: 'Suave',    Icono: FeatherIcon },
+  descanso: { chip: 'Descanso', Icono: BedIcon },
+};
+const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const INI = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const r1 = x => Math.round((Number(x) || 0) * 10) / 10;
+const signo = x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x);
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+const CIRC = 2 * Math.PI * 54;
+
+/** El número del anillo sube de 0 a su valor al abrir el panel (si el móvil
+ *  no pide reducir el movimiento). Lo que se pinta primero ya es el valor. */
+function Cuenta({ valor }) {
+  const ref = useRef(null);
+  const quieto = useReducedMotion();
+  useEffect(() => {
+    if (quieto || !ref.current) return undefined;
+    const c = animate(0, valor, { duration: 1.1, ease: [0.2, 0.8, 0.2, 1],
+      onUpdate: x => { if (ref.current) ref.current.textContent = String(Math.round(x)); } });
+    return () => c.stop();
+  }, [valor, quieto]);
+  return <span ref={ref}>{valor}</span>;
+}
+
 export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests = [] }) {
   const ser  = useMemo(() => seriesCarga(cal, ent, tests), [cal, ent, tests]);
 
@@ -208,98 +249,138 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
   const ejeFuerza = test && !test.sinBase
     ? Math.max(0, Math.min(100, Math.round(50 + test.pct * 4)))
     : 50;
-  const radar = [
-    { axis: 'Dedos', val: fr.dedos },
-    { axis: 'Fuerza', val: ejeFuerza },
-    { axis: 'Cuerpo', val: fr.cuerpo },
-    { axis: 'Sistémico', val: fr.sistemico },
-  ];
   const total = Math.round((fr.dedos * 0.4 + ejeFuerza * 0.3 + fr.cuerpo * 0.15 + fr.sistemico * 0.15));
   const col = total >= 70 ? COL.bien : total >= 45 ? COL.medio : COL.mal;
+  const zona = total >= 70 ? 'alta' : total >= 45 ? 'media' : 'baja';
   const v = TXT[rec.veredicto];
+  const V = VEREDICTO[rec.veredicto];
+  const conTest = test && !test.sinBase;
+
+  // De qué está hecho el Estado. Mismo orden de colores que el resto de la app.
+  const comp = [
+    { k: 'dedos', nom: 'Dedos', Icono: HandIcon, c: COL.dedos, v: fr.dedos, peso: 40,
+      txt: `Lo recuperado que está el canal de dedos frente a tu propio historial: 100 es sin fatiga acumulada; 0, una fatiga de vez y media tu pico habitual de los últimos 90 días. Es el canal más lento en recuperarse (τ ${PARAMS.tau.dedos} días).` },
+    { k: 'cuerpo', nom: 'Cuerpo', Icono: PersonSimpleIcon, c: COL.cuerpo, v: fr.cuerpo, peso: 15,
+      txt: `Igual que dedos, para el resto de la musculatura: tronco, brazos y piernas. Se recupera más rápido (τ ${PARAMS.tau.cuerpo} días).` },
+    { k: 'sistemico', nom: 'Sistémico', Icono: HeartbeatIcon, c: COL.sistemico, v: fr.sistemico, peso: 15,
+      txt: `La fatiga general, la que más sube con el cardio y las sesiones largas. Es la que antes se recupera (τ ${PARAMS.tau.sistemico} ${PARAMS.tau.sistemico === 1 ? 'día' : 'días'}).` },
+    { k: 'fuerza', nom: 'Fuerza', Icono: GaugeIcon, c: 'var(--fuerza)', v: ejeFuerza, peso: 30,
+      txt: conTest
+        ? `Tu último test contra tu media de los 60 días anteriores, en la misma regleta. 50 es justo tu media y cada 1 % arriba o abajo mueve 4 puntos: ${signo(test.pct)} % da ${ejeFuerza}.`
+        : 'Tu último test contra tu media de los 60 días anteriores, en la misma regleta. Ahora mismo no hay ningún test comparable, así que se queda en 50.' },
+  ];
+  const [abierto, setAbierto] = useState(null);
+
+  // Los 7 días que mira la ventana tendinosa (hoy y los 6 anteriores),
+  // leídos de la misma serie. Una barra gris es carga de dedos que no cuenta:
+  // ese día no hubo ningún ejercicio de los que cargan los dedos.
+  const semana = useMemo(() => {
+    const out = [];
+    const base = new Date(aT(hoy));
+    for (let d = 6; d >= 0; d--) {
+      const x = new Date(base); x.setUTCDate(x.getUTCDate() - d);
+      const f = x.toISOString().slice(0, 10);
+      const c = ser[f] || {};
+      const val = r1(c.dedos);
+      out.push({ f, v: val, kind: c.cargaDedos ? 'cuenta' : val > 0 ? 'nocuenta' : 'cero', dow: x.getUTCDay(), dia: x.getUTCDate() });
+    }
+    return out;
+  }, [ser, hoy]);
+  const maxS = Math.max(0.0001, ...semana.map(s => s.v));
+  const [sel, setSel] = useState(null);
+  const elegido = sel || (semana.find(s => s.f === vent.ultima) ? vent.ultima : hoy);
+  const nombreDia = s => `${s.f === hoy ? 'hoy, ' : ''}${DIAS[s.dow]} ${s.dia}`;
+  const tipDia = s => cap(nombreDia(s)) + (
+    s.kind === 'cuenta' ? ` · ${s.v} de dedos · ${s.f === vent.ultima ? 'tu última carga de dedos' : 'cuenta para la ventana'}${s.v === 0 ? ' (sin minutos anotados)' : ''}`
+    : s.kind === 'nocuenta' ? ` · ${s.v} de dedos · no cuenta: ese día no hubo ningún ejercicio que cargue los dedos`
+    : ` · sin carga de dedos${s.f === hoy ? ' todavía' : ''}`);
+
+  const hoyD = new Date(aT(hoy));
+  const fechaHoy = cap(`${DIAS[hoyD.getUTCDay()]} ${hoyD.getUTCDate()} de ${MESES_L[hoyD.getUTCMonth()]}`);
+  const pos = conTest ? 50 + Math.max(-10, Math.min(10, test.pct)) * 5 : 50;
+  const N = NIVEL[vent.nivel] || NIVEL.green;
 
   return (
     <div className="page">
       <h2 className="p-title">Hoy</h2>
+      <p className="p-sub">{fechaHoy}</p>
 
-      {/* ---- la respuesta, arriba del todo ---- */}
-      <div className="card" style={{ padding: 16, borderLeft: `3px solid ${v.c}` }}>
-        <div style={{ fontSize: 19, fontWeight: 700, color: v.c, marginBottom: 6 }}>{v.t}</div>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
-          {rec.razones.map((r, i) => (
-            <li key={i} style={{ fontSize: 13, color: '#B8A88F', marginBottom: 3 }}>{r}</li>
-          ))}
-        </ul>
-      </div>
+      <div className="grid2">
+        {/* ---- la respuesta, arriba del todo ---- */}
+        <section className="card verdict span2" style={{ '--c': v.c, '--i': 0 }} aria-label="Veredicto de hoy">
+          <V.Icono className="wm" size={128} weight="duotone" aria-hidden="true" />
+          <span className="chip"><span className="dot" style={{ '--c': v.c }} />{V.chip}</span>
+          <h3>{v.t}</h3>
+          <ul>
+            {rec.razones.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </section>
 
-      {/* ---- anillo + radar ---- */}
-      <div className="card">
-        <div className="fit-row">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-            <div className="fit-ring" style={{ borderColor: col }}>
-              <span style={{ fontSize: 28, fontWeight: 700, color: col }}>{total}</span>
+        {/* ---- estado y de qué está hecho ---- */}
+        <Tarjeta titulo="Estado" Icono={GaugeIcon} c="var(--brand)" i={1} className="span2">
+          <div className="estado-top" style={{ '--c': col }}>
+            <div className="ring">
+              <svg viewBox="0 0 128 128" aria-hidden="true">
+                <circle className="trk" cx="64" cy="64" r="54" fill="none" strokeWidth="12" />
+                <circle className="arc" cx="64" cy="64" r="54" fill="none" strokeWidth="12" strokeLinecap="round"
+                        transform="rotate(-90 64 64)" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - total / 100)} />
+              </svg>
+              <div className="ring-num"><b><Cuenta valor={total} /></b><span>de 100</span></div>
             </div>
-            <div style={{ fontSize: 10, color: '#6B5F52' }}>Estado</div>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height={130}>
-              <RadarChart data={radar} cx="50%" cy="50%" outerRadius={48}>
-                <PolarGrid stroke="#33291F" />
-                <PolarAngleAxis dataKey="axis" tick={{ fill: '#8B7D6B', fontSize: 10 }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar dataKey="val" stroke={col} fill={col} fillOpacity={0.2} strokeWidth={2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div style={{ fontSize: 10, color: '#5E5445', marginTop: 6, lineHeight: 1.4 }}>
-          Cuanto más lejos del centro, mejor. Dedos, cuerpo y sistémico son frescura;
-          fuerza es tu último test contra tu media
-          {test && !test.sinBase ? '.' : ' — y ahora mismo no hay test comparable, así que ese eje está al 50 por defecto.'}
-          {' '}El Estado pesa dedos 40 %, fuerza 30 %, cuerpo 15 % y sistémico 15 %.
-        </div>
-      </div>
-
-      {/* ---- el test ---- */}
-      <div className="card" style={{ padding: 16 }}>
-        <div className="sh a" style={{ marginBottom: 8 }}>Último test</div>
-        {!test ? (
-          <div style={{ fontSize: 12, color: '#8B7D6B' }}>
-            Todavía no hay ningún test con las dos manos registrado.
-          </div>
-        ) : test.sinBase ? (
-          <div style={{ fontSize: 12, color: '#8B7D6B', lineHeight: 1.5 }}>
-            {test.fecha.split('-').reverse().join('/')} · {test.mm ? <>regleta {test.mm} mm · </> : null}
-            {test.valor} N (suma de las dos manos).<br />
-            {test.mm === null
-              ? 'Este test no tiene anotado el tamaño de regleta, así que no hay con qué compararlo.'
-              : `${test.n === 0 ? 'No hay ningún test más' : `Solo hay ${test.n} test${test.n === 1 ? '' : 's'} más`} con esa regleta en los 60 días anteriores. Hacen falta 3 para poder comparar con algo.`}
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <span style={{ fontSize: 32, fontWeight: 800, color: test.pct >= 0 ? COL.bien : test.pct > -5 ? COL.medio : COL.mal }}>
-                {test.pct > 0 ? '+' : ''}{test.pct} %
-              </span>
-              <span style={{ fontSize: 13, color: '#8B7D6B' }}>respecto a tu media</span>
+            <div className="estado-side">
+              <span className="chip"><span className="dot" style={{ '--c': col }} />Zona {zona}</span>
+              <p className="note">70 o más, alta · de 45 a 69, media · menos de 45, baja.</p>
             </div>
-            <div style={{ fontSize: 11, color: '#6B5F52', marginTop: 6, lineHeight: 1.5 }}>
-              {test.fecha.split('-').reverse().join('/')} · {test.valor} N contra una media de {test.media} N,
-              sumando las dos manos.<br />
-              Comparado solo con tests <b>pre</b> de <b>regleta {test.mm} mm</b>, {test.n} de los 60 días
-              anteriores a ese test.
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+          <ConTabla tabla={
+            <Tabla titulo="De qué está hecho el Estado" filas={comp}
+                   cols={[{ k: 'nom', t: 'Componente' }, { k: 'v', t: 'Valor' }, { k: 'peso', t: 'Peso', f: x => x + ' %' }]} />
+          }>
+            <ul className="comp">
+              {comp.map((x, n) => (
+                <li key={x.k}>
+                  <button type="button" className="bar-row" aria-expanded={abierto === x.k}
+                          onClick={() => setAbierto(abierto === x.k ? null : x.k)} style={{ '--c': x.c, '--v': x.v, '--n': n }}>
+                    <x.Icono size={26} weight="duotone" />
+                    <span className="bar-name">{x.nom}<small>pesa {x.peso} %</small></span>
+                    <span className="bar-val">{x.v}<span className="sr"> de 100</span></span>
+                    <CaretDownIcon className="caret" size={20} weight="bold" />
+                    <span className="bar-track" aria-hidden="true"><span className="bar-fill" /></span>
+                  </button>
+                  <div className={'exp-wrap' + (abierto === x.k ? ' open' : '')} aria-hidden={abierto !== x.k}>
+                    <div className="exp"><p>{x.txt}</p></div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </ConTabla>
+          <div className="note" style={{ marginTop: 10 }}>
+            Cuanto más larga la barra, mejor. Dedos, cuerpo y sistémico son frescura;
+            fuerza es tu último test contra tu media
+            {conTest ? '.' : ' — y ahora mismo no hay test comparable, así que esa barra está al 50 por defecto.'}
+            {' '}El Estado pesa dedos 40 %, fuerza 30 %, cuerpo 15 % y sistémico 15 %. Toca una barra para ver de dónde sale.
+          </div>
+        </Tarjeta>
 
-      {/* ---- ventana tendinosa ---- */}
-      <div className={`tendon-banner ${vent.nivel}`}>
-        <span style={{ fontSize: 18 }}>{vent.nivel === 'red' ? '🔴' : vent.nivel === 'amber' ? '🟠' : '🟢'}</span>
-        <div style={{ flex: 1 }}>
-          <b>Ventana tendinosa</b>
-          <div style={{ fontSize: 12, marginTop: 2 }}>{vent.msg}</div>
-          <div style={{ fontSize: 11, marginTop: 6, opacity: 0.75 }}>
+        {/* ---- ventana tendinosa ---- */}
+        <Tarjeta titulo="Ventana tendinosa" Icono={HourglassMediumIcon} c="var(--dedos)" i={2}
+                 extra={<span className="chip"><span className="dot" style={{ '--c': N.c }} />{N.t}</span>}>
+          <p className="v-msg">{vent.msg}</p>
+          <div className="strip" role="group" aria-label="Carga de dedos de los últimos 7 días. Toca un día para ver su valor.">
+            {semana.map((s, n) => (
+              <button key={s.f} type="button" className="d-day" data-kind={s.kind} aria-pressed={elegido === s.f}
+                      aria-label={tipDia(s)} onClick={() => setSel(s.f)}
+                      style={{ '--h': `${s.kind === 'cero' ? 0 : Math.max(3, Math.round((s.v / maxS) * 70))}px`, '--n': n }}>
+                <span className="d-col">
+                  {s.f === vent.ultima && s.v > 0 && <span className="vlab">{s.v}</span>}
+                  <span className="d-bar" />
+                </span>
+                <span className="dlab">{INI[s.dow]}<b>{s.dia}</b>{s.f === hoy && <em>hoy</em>}</span>
+              </button>
+            ))}
+          </div>
+          <p className="callout" aria-live="polite">{tipDia(semana.find(s => s.f === elegido) || semana[semana.length - 1])}</p>
+          <div className="note">
             Carga de dedos 7 d: <b>{vent.acum}</b> · {vent.dias7} día{vent.dias7 === 1 ? '' : 's'} con carga
             {vent.ultima && <> · última carga: <b>{vent.ultima.slice(8)}/{vent.ultima.slice(5, 7)}</b></>}
             {vent.sinMinutos > 0 && (
@@ -309,15 +390,49 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
               </div>
             )}
           </div>
-        </div>
+        </Tarjeta>
+
+        {/* ---- el test ---- */}
+        <Tarjeta titulo="Último test" Icono={GaugeIcon} c="var(--fuerza)" i={3}>
+          {!test ? (
+            <div className="vacio">
+              Todavía no hay ningún test con las dos manos registrado.
+            </div>
+          ) : test.sinBase ? (
+            <div className="note">
+              {test.fecha.split('-').reverse().join('/')} · {test.mm ? <>regleta {test.mm} mm · </> : null}
+              {test.valor} N (suma de las dos manos).<br />
+              {test.mm === null
+                ? 'Este test no tiene anotado el tamaño de regleta, así que no hay con qué compararlo.'
+                : `${test.n === 0 ? 'No hay ningún test más' : `Solo hay ${test.n} test${test.n === 1 ? '' : 's'} más`} con esa regleta en los 60 días anteriores. Hacen falta 3 para poder comparar con algo.`}
+            </div>
+          ) : (
+            <>
+              <div className="hero"><b>{signo(test.pct)} %</b><span>respecto a tu media</span></div>
+              <div className="meter" aria-hidden="true">
+                <span className="mt-track" />
+                <span className="mt-seg" style={{ left: `${Math.min(pos, 50)}%`, width: `${Math.abs(pos - 50)}%` }} />
+                <span className="mt-mid" />
+                <span className="mt-dot" style={{ left: `${pos}%` }} />
+              </div>
+              <div className="mt-scale" aria-hidden="true"><span>−10 %</span><span>tu media</span><span>+10 %</span></div>
+              <div className="note">
+                {test.fecha.split('-').reverse().join('/')} · {test.valor} N contra una media de {test.media} N,
+                sumando las dos manos.<br />
+                Comparado solo con tests <b>pre</b> de <b>regleta {test.mm} mm</b>, {test.n} de los 60 días
+                anteriores a ese test.
+              </div>
+            </>
+          )}
+        </Tarjeta>
       </div>
 
-      <div style={{ fontSize: 10, color: '#5E5445', padding: '4px 4px 0', lineHeight: 1.45 }}>
+      <p className="foot">
         Sin predicciones: todo lo de esta pantalla describe lo que ya ha pasado.
         Los días se cuentan enteros porque las sesiones se apuntan por fecha, sin hora.
         Umbral de oclusión {Math.round(PARAMS.umbralOclusion * 100)} % · τ dedos {PARAMS.tau.dedos} d ·
         el % de bloque, travesía y vía va sin umbral.
-      </div>
+      </p>
     </div>
   );
 }

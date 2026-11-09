@@ -327,7 +327,7 @@ select.f-input{background-image:${FLECHA};background-repeat:no-repeat;background
 .ring .arc{stroke:var(--c)}
 .ring-num{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
 .ring-num b{font-family:var(--f-display);font-weight:700;font-size:52px;line-height:.9;font-variant-numeric:tabular-nums}
-.ring-num span{font-size:12px;color:var(--ink2);font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.ring-num>span{font-size:12px;color:var(--ink2);font-weight:700;letter-spacing:.6px;text-transform:uppercase}
 .estado-side{display:flex;flex-direction:column;gap:8px;min-width:0}
 .estado-side .chip{align-self:flex-start;background:color-mix(in srgb,var(--c) 18%,var(--card))}
 .comp{list-style:none;display:flex;flex-direction:column;gap:2px;margin:4px 0 6px}
