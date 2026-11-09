@@ -13,6 +13,7 @@ import CiclosP from './CiclosP.jsx';
 import { m, AnimatePresence } from 'motion/react';
 import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
 import { IconoActividad, Logo } from './iconos.jsx';
+import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, fechaLarga } from './graficas.jsx';
 import { useTema, cambiarTema } from './tema.js';
 
 const MINFO={
@@ -486,15 +487,23 @@ function TqP({t25,treg,st25,streg}){
 
 /* ───────── PESO ───────── */
 function PesoP({data,save}){
-  const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+  const[show,setShow]=useState(false);const[eid,setEid]=useState(null);const[rango,setRango]=useState('todo');
   const blank={fecha:td(),peso:'',altura:177,grasa:'',obs:''};
   const[form,setForm]=useState(blank);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
-  const chart=useMemo(()=>[...data].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),p:Number(r.peso)||0})),[data]);
+  const ult=sorted.find(r=>Number(r.peso)>0);
+  const desde=desdeRango(rango,td());
+  const enRango=useMemo(()=>sorted.filter(r=>!desde||(r.fecha||'')>=desde),[sorted,desde]);
   const sub=()=>{if(eid)save(data.map(r=>r.id===eid?{...form,id:eid}:r));else save([...data,{...form,id:xi()}]);setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Peso</h2>
-    {chart.length>2&&<div className="card"><div className="card-t">Evolución</div><ResponsiveContainer width="100%" height={180}><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={10}/><YAxis domain={['auto','auto']} stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Area type="monotone" dataKey="p" stroke="#9B6BB7" fill="#9B6BB733" name="kg"/></AreaChart></ResponsiveContainer></div>}
-    <div className="card lc">{sorted.map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>{setForm({...blank,...r});setEid(r.id);setShow(true)}}><div className="lr-l"><span style={{fontSize:16,fontWeight:700,color:'#9B6BB7'}}>{r.peso} kg</span>{r.grasa&&<span className="lr-s" style={{marginLeft:8}}>{r.grasa}%</span>}</div><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>)}</div>
+    {data.length>2&&<Tarjeta titulo="Evolución" Icono={ScalesIcon} c="var(--peso)" i={0}>
+      {ult&&<div className="hero" style={{marginBottom:12}}><b>{ult.peso}</b><span>kg · último registro, {fechaLarga(ult.fecha)}</span></div>}
+      <Rango valor={rango} onCambio={setRango}/>
+      <ConTabla tabla={<Tabla titulo="Pesos registrados" filas={enRango} cols={[{k:'fecha',t:'Fecha',f:v=>fechaLarga(v)},{k:'peso',t:'kg',f:v=>v||'—'},{k:'grasa',t:'% grasa',f:v=>v||'—'}]}/>}>
+        <GraficaPeso filas={enRango}/>
+      </ConTabla>
+    </Tarjeta>}
+    <div className="card lc" style={{'--i':1}}>{sorted.map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>{setForm({...blank,...r});setEid(r.id);setShow(true)}}><div className="lr-l"><span style={{fontFamily:'var(--f-display)',fontSize:21,fontWeight:700}}>{r.peso} <small style={{fontFamily:'var(--f-body)',fontSize:13,fontWeight:600,color:'var(--ink2)'}}>kg</small></span>{r.grasa&&<span className="lr-s" style={{marginLeft:8}}>{r.grasa}%</span>}</div><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>)}</div>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar peso':'Nuevo peso'}>
       <F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/>
       <div className="row-2"><F label="Peso (kg)" value={form.peso} onChange={v=>setForm({...form,peso:v})} type="number" step="0.1"/><F label="Altura (cm)" value={form.altura} onChange={v=>setForm({...form,altura:v})} type="number"/></div>
