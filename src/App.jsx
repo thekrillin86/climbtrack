@@ -13,7 +13,7 @@ import CiclosP from './CiclosP.jsx';
 import { m, AnimatePresence } from 'motion/react';
 import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
 import { IconoActividad, Logo } from './iconos.jsx';
-import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, GraficaCurva, fechaLarga } from './graficas.jsx';
+import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, GraficaPeso, GraficaCurva, GraficaTindeq, tablaTindeq, fechaLarga } from './graficas.jsx';
 import { GaugeIcon, ChartLineIcon, MicroscopeIcon } from '@phosphor-icons/react';
 import { useTema, cambiarTema } from './tema.js';
 
@@ -456,7 +456,12 @@ function TqP({t25,treg,st25,streg}){
   const sizes=useMemo(()=>edgeSizes(treg),[treg]);
   const raw=tab==='25'?t25:treg;
   const data=useMemo(()=>tab==='reg'&&fmm?raw.filter(r=>String(r.mm)===String(fmm)):raw,[raw,tab,fmm]);
-  const chart=useMemo(()=>[...data].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>({f:(r.fecha||'').slice(5),i:Number(r.esq)||0,d:Number(r.dre)||0})),[data]);
+  const[rango,setRango]=useState('todo');
+  const desde=desdeRango(rango,td());
+  const enRango=useMemo(()=>data.filter(r=>!desde||(r.fecha||'')>=desde),[data,desde]);
+  // Con «Todas» y varios tamaños, una gráfica por regleta: los newtons de
+  // regletas distintas no se comparan entre sí.
+  const porRegleta=tab==='reg'&&sizes.length>1&&!fmm;
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const blank=()=>({fecha:td(),mm:tab==='25'?25:(fmm||lastMm),esq:'',dre:'',momento:''});
   const[form,setForm]=useState(blank());
@@ -471,9 +476,18 @@ function TqP({t25,treg,st25,streg}){
   return(<div className="page"><h2 className="p-title">Tindeq</h2>
     <div className="tabs"><button className={`tb${tab==='25'?' ac':''}`} onClick={()=>{setTab('25');setFmm('')}}>25mm ({t25.length})</button><button className={`tb${tab==='reg'?' ac':''}`} onClick={()=>setTab('reg')}>Regleta ({treg.length})</button></div>
     {tab==='reg'&&sizes.length>1&&<div className="pills"><button className={`pill${!fmm?' active':''}`} onClick={()=>setFmm('')}>Todas ({treg.length})</button>{sizes.map(m=><button key={m} className={`pill${String(fmm)===String(m)?' active':''}`} onClick={()=>setFmm(m)}>{m}mm ({treg.filter(r=>Number(r.mm)===m).length})</button>)}</div>}
-    {tab==='reg'&&sizes.length>1&&!fmm&&<div className="mvc-warn" style={{marginBottom:12}}>⚠ Estás viendo tamaños de regleta distintos en el mismo gráfico. Filtra por mm para comparar valores equivalentes.</div>}
-    {chart.length>2&&<div className="card"><div className="card-t">Evolución{tab==='reg'&&fmm?` — ${fmm}mm`:''}</div><ResponsiveContainer width="100%" height={200}><LineChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#33291F"/><XAxis dataKey="f" stroke="#8B7D6B" fontSize={9}/><YAxis stroke="#8B7D6B"/><Tooltip contentStyle={TTS}/><Legend/><Line type="monotone" dataKey="i" stroke="#E8A838" name="Izq" dot={false} strokeWidth={2}/><Line type="monotone" dataKey="d" stroke="#3A8FB7" name="Dch" dot={false} strokeWidth={2}/></LineChart></ResponsiveContainer></div>}
-    <div className="card lc">{sorted.slice(0,60).map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>edit(r)}><div className="lr-l"><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.mm&&<span className="lr-s" style={{marginLeft:8}}>{r.mm}mm</span>}{r.momento&&<span className="lr-s" style={{marginLeft:6}}>{r.momento}</span>}</div><div style={{display:'flex',alignItems:'center',gap:12}}><span className="tq-l">I:{r.esq}N</span><span className="tq-r">D:{r.dre}N</span></div></div>)}</div>
+    {data.length>2&&<Tarjeta titulo={porRegleta?'Evolución por regleta':`Evolución${tab==='reg'&&fmm?` — ${fmm}mm`:''}`} Icono={RulerIcon} c="var(--izq)" i={0}>
+      <Rango valor={rango} onCambio={setRango}/>
+      <ConTabla tabla={tablaTindeq(enRango)}>
+        {porRegleta?sizes.map(mm=>{const f=enRango.filter(r=>Number(r.mm)===mm);return(<div key={mm} className="mini">
+            <div className="mini-h">{mm} mm <small>· {f.length} {f.length===1?'test':'tests'}</small></div>
+            <GraficaTindeq filas={f} alto={150} etiqueta={`Fuerza en regleta de ${mm} mm`}/>
+          </div>)})
+          :<GraficaTindeq filas={enRango}/>}
+      </ConTabla>
+      {porRegleta&&<div className="note" style={{marginTop:6}}>Una gráfica por tamaño de regleta: los newtons de regletas distintas no se comparan entre sí. Toca un tamaño arriba para verlo solo.</div>}
+    </Tarjeta>}
+    <div className="card lc" style={{'--i':1}}>{sorted.slice(0,60).map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>edit(r)}><div className="lr-l" style={{gap:8}}><span className="lr-d" style={{color:'var(--ink)',fontWeight:600}}>{(r.fecha||'').slice(5)}</span>{r.mm&&<span className="chip" style={{padding:'5px 9px'}}>{r.mm} mm</span>}{r.momento&&<span className="lr-s">{r.momento}</span>}</div><div style={{display:'flex',alignItems:'center',gap:14}}><span className="tq-l">I {r.esq} N</span><span className="tq-r">D {r.dre} N</span></div></div>)}</div>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar registro':`Nuevo test ${tab==='25'?'25mm':'regleta'}`}>
       <F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/>
       <F label="Tamaño regleta (mm)" value={form.mm} onChange={v=>setForm({...form,mm:v})} type="number" min={5} max={40}/>
