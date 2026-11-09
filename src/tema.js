@@ -43,6 +43,12 @@ export const OSCURO = {
   dch: '#3A8FB7',
   info: '#3A8FB7',        // bloque General, minutos
   peso: '#9B6BB7',
+  acento: '#9B6BB7',      // series de un bloque, pulso
+  carga: '#C4724E',       // la cifra «Carga: N» del formulario
+  onChip: '#1E1A15',      // texto sobre un chip marcado
+  wash: 'rgba(255,255,255,0.03)',   // velo sobre tarjeta
+  wash2: 'rgba(255,255,255,0.04)',  // velo de pistas de barra
+  goodWash: 'rgba(107,159,74,0.10)', // fondo de aviso de éxito
   // estado: significado reservado, siempre con texto o icono al lado
   good: '#6B9F4A',
   warn: '#E8A838',

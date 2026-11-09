@@ -97,12 +97,12 @@ export function PantallaFallo({ msg, onReintentar }) {
           La app no ha podido arrancar
         </h1>
 
-        <div style={{ background: 'rgba(107,159,74,0.10)', border: '1px solid #6B9F4A',
+        <div style={{ background: 'var(--goodWash)', border: '1px solid var(--good)',
                       borderRadius: 10, padding: 14, marginBottom: 18 }}>
-          <div style={{ color: '#6B9F4A', fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+          <div style={{ color: 'var(--good)', fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
             Tus datos siguen ahí.
           </div>
-          <div style={{ color: '#8B7D6B', fontSize: 13, lineHeight: 1.5 }}>
+          <div style={{ color: 'var(--ink2)', fontSize: 13, lineHeight: 1.5 }}>
             No se ha modificado nada. El fallo ha ocurrido al arrancar, antes de
             escribir. Descarga la copia de rescate antes de tocar nada más.
           </div>
@@ -114,13 +114,13 @@ export function PantallaFallo({ msg, onReintentar }) {
         </button>
 
         {typeof estado === 'string' && estado.startsWith('ok:') && (
-          <div style={{ color: '#6B9F4A', fontSize: 13, marginBottom: 10, textAlign: 'center' }}>
+          <div style={{ color: 'var(--good)', fontSize: 13, marginBottom: 10, textAlign: 'center' }}>
             Copia generada ({Math.round(+estado.slice(3) / 1024)} KB). Compruébala en Descargas
             y guárdala fuera del móvil antes de seguir.
           </div>
         )}
         {typeof estado === 'string' && estado.startsWith('error:') && (
-          <div style={{ color: '#D4563A', fontSize: 13, marginBottom: 10 }}>
+          <div style={{ color: 'var(--bad)', fontSize: 13, marginBottom: 10 }}>
             No se ha podido generar la copia: {estado.slice(6)}
           </div>
         )}
@@ -130,10 +130,10 @@ export function PantallaFallo({ msg, onReintentar }) {
           Reintentar
         </button>
 
-        <details style={{ color: '#6B5F52', fontSize: 12 }}>
+        <details style={{ color: 'var(--ink3)', fontSize: 12 }}>
           <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Detalle técnico</summary>
           <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                        background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 6 }}>
+                        background: 'var(--wash)', padding: 10, borderRadius: 6 }}>
             {String(msg)}
           </pre>
         </details>

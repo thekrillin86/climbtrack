@@ -8,7 +8,7 @@ import React, { useMemo } from 'react';
 import { analizarCiclos, cicloActual, revisarCiclos } from './ciclos.js';
 import { td } from './lib.js';
 
-const C = { dedos:'#E8A838', ok:'#6B9F4A', med:'#E8A838', mal:'#D4563A', txt:'#B8A88F', sec:'#8B7D6B', ter:'#5E5445' };
+const C = { dedos:'var(--dedos)', ok:'var(--good)', med:'var(--warn)', mal:'var(--bad)', txt:'var(--inkSoft)', sec:'var(--ink2)', ter:'var(--ink4)' };
 
 export default function CiclosP({ cal = [], ent = [], tests = [] }) {
   const ciclos = useMemo(() => analizarCiclos(cal, ent, tests), [cal, ent, tests]);
@@ -30,7 +30,7 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
           </div>
           <div style={{ display:'flex', gap:10 }}>
             {[['Sesiones/sem', act.sesionesSemana], ['Descanso', act.pctDescanso + '%'], ['Dedos/sem', act.dedosSemana]].map(([l,v]) => (
-              <div key={l} style={{ flex:1, textAlign:'center', padding:'10px 4px', background:'rgba(255,255,255,0.03)', borderRadius:10 }}>
+              <div key={l} style={{ flex:1, textAlign:'center', padding:'10px 4px', background:'var(--wash)', borderRadius:10 }}>
                 <div style={{ fontSize:22, fontWeight:800, color:C.dedos }}>{v}</div>
                 <div style={{ fontSize:10, color:C.sec, marginTop:2 }}>{l}</div>
               </div>
@@ -59,14 +59,14 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
           const actual = act && c.clave === act.clave;
           return (
             <div key={c.clave} style={{ marginBottom:7, opacity: actual ? 1 : 0.85 }}>
-              <div style={{ display:'flex', fontSize:12, color: actual ? '#E8D5B5' : C.txt, alignItems:'center' }}>
+              <div style={{ display:'flex', fontSize:12, color: actual ? 'var(--ink)' : C.txt, alignItems:'center' }}>
                 <span style={{ width:52, fontWeight: actual ? 700 : 400 }}>{c.clave}{actual && ' ←'}</span>
                 <span style={{ width:40, textAlign:'right', color:C.sec }}>{c.dias}</span>
                 <span style={{ width:52, textAlign:'right' }}>{c.sesionesSemana}</span>
                 <span style={{ width:48, textAlign:'right', color: c.pctDescanso>=30?C.ok:c.pctDescanso>=15?C.med:C.mal }}>{c.pctDescanso}%</span>
                 <span style={{ flex:1, textAlign:'right', fontWeight:700 }}>{c.dedosSemana}</span>
               </div>
-              <div style={{ height:4, background:'rgba(255,255,255,0.04)', borderRadius:2, marginTop:3 }}>
+              <div style={{ height:4, background:'var(--wash2)', borderRadius:2, marginTop:3 }}>
                 <div style={{ width:`${(c.dedosSemana/maxD)*100}%`, height:'100%', background:C.dedos, borderRadius:2 }} />
               </div>
             </div>

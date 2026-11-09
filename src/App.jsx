@@ -111,7 +111,7 @@ export default function App(){
   const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
   const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'nube',icon:'\u2601',label:'Nube'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
 
-  if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'#8B7D6B'}}>ClimbTrack v6</div></div></div>);
+  if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'var(--ink2)'}}>ClimbTrack v6</div></div></div>);
   if(fallo)return<PantallaFallo msg={fallo}/>;
   if(!init)return<InitP onInit={initData}/>;
 
@@ -119,13 +119,13 @@ export default function App(){
     <header className="header"><div className="h-brand"><span style={{fontSize:22}}>🧗</span><b style={{fontSize:17}}>ClimbTrack</b><span className="h-ver">v6</span></div>
       {bkp.overdue&&<button className="bkp-warn" onClick={doExport}>⚠ Backup {bkp.never?'nunca':bkp.days+'d'}</button>}
     </header>
-    {pendientes.length>0&&<button onClick={()=>{setErrBandeja('');setVerBandeja(true)}} style={{display:'block',width:'calc(100% - 24px)',margin:'8px 12px 0',padding:'10px 12px',borderRadius:10,border:'1px solid #E8A838',background:'#E8A83822',color:'#E8A838',fontWeight:600,fontSize:13,fontFamily:'inherit',cursor:'pointer',textAlign:'left'}}>📬 Talaia propone {pendientes.length===1?'1 registro':pendientes.length+' registros'} · toca para revisar</button>}
+    {pendientes.length>0&&<button onClick={()=>{setErrBandeja('');setVerBandeja(true)}} style={{display:'block',width:'calc(100% - 24px)',margin:'8px 12px 0',padding:'10px 12px',borderRadius:10,border:'1px solid var(--brand)',background:'color-mix(in srgb,var(--brand) 13.3%,transparent)',color:'var(--brand)',fontWeight:600,fontSize:13,fontFamily:'inherit',cursor:'pointer',textAlign:'left'}}>📬 Talaia propone {pendientes.length===1?'1 registro':pendientes.length+' registros'} · toca para revisar</button>}
     <Modal open={verBandeja} onClose={()=>setVerBandeja(false)} title="Propuestas de Talaia">
-      {errBandeja&&<div style={{color:'#D4563A',fontSize:12,marginBottom:8}}>{errBandeja}</div>}
-      {pendientes.length===0&&<div style={{color:'#8B7D6B',fontSize:13}}>No hay nada pendiente.</div>}
+      {errBandeja&&<div style={{color:'var(--bad)',fontSize:12,marginBottom:8}}>{errBandeja}</div>}
+      {pendientes.length===0&&<div style={{color:'var(--ink2)',fontSize:13}}>No hay nada pendiente.</div>}
       {pendientes.map(item=><div key={item.id} className="card" style={{marginBottom:10,padding:12}}>
         <div style={{fontWeight:700,marginBottom:6}}>{item.resumen||'Propuesta'}</div>
-        {(item.propuesta?.registros||[]).map((r,i)=><div key={i} style={{fontSize:12,color:'#8B7D6B',marginBottom:4,lineHeight:1.4}}>{describir(r)}</div>)}
+        {(item.propuesta?.registros||[]).map((r,i)=><div key={i} style={{fontSize:12,color:'var(--ink2)',marginBottom:4,lineHeight:1.4}}>{describir(r)}</div>)}
         <div style={{display:'flex',gap:8,marginTop:8}}>
           <button className="btn-primary" style={{flex:1,marginTop:0}} onClick={()=>aceptarPropuesta(item)}>Añadir</button>
           <button className="btn-del" style={{flex:1,marginTop:0}} onClick={()=>descartarPropuesta(item)}>Descartar</button>
@@ -169,12 +169,12 @@ function InitP({onInit}){const[st,setSt]=useState('ready');const ref=useRef(null
           if(o.intentos_rpe)o.intentos_rpe=pRpe(o.intentos_rpe);sd[k].push(o)}}
       const total=Object.values(sd).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0);if(total<=1)throw new Error('El fichero no contiene datos reconocibles. Comprueba que es el CSV exportado por ClimbTrack y no otro.');const ok=await onInit(sd);setSt(ok?'done':'ready')}catch(err){console.error(err);setSt('error:'+(err?.message||err))}};
   return(<div className="app"><style>{CSS}</style><div className="init-page"><div style={{textAlign:'center',maxWidth:400,width:'100%'}}>
-    <div style={{fontSize:64,marginBottom:20}}>🧗</div><h1 style={{fontSize:32,fontWeight:700,marginBottom:8}}>ClimbTrack <span style={{fontSize:16,color:'#E8A838'}}>v6</span></h1>
-    <p style={{color:'#6B5F52',lineHeight:1.6,marginBottom:32}}>Escalada · Carga · Recuperación</p>
-    {st==='loading'?<div style={{color:'#E8A838',padding:20}}>Importando...</div>:String(st).startsWith('error')?<div style={{color:'#D4563A',padding:20,fontSize:13,lineHeight:1.5}}>{String(st).slice(6)||'Error al importar.'}<div style={{marginTop:12}}><button className="btn-secondary" onClick={()=>setSt('ready')}>Volver</button></div></div>:
+    <div style={{fontSize:64,marginBottom:20}}>🧗</div><h1 style={{fontSize:32,fontWeight:700,marginBottom:8}}>ClimbTrack <span style={{fontSize:16,color:'var(--brand)'}}>v6</span></h1>
+    <p style={{color:'var(--ink3)',lineHeight:1.6,marginBottom:32}}>Escalada · Carga · Recuperación</p>
+    {st==='loading'?<div style={{color:'var(--brand)',padding:20}}>Importando...</div>:String(st).startsWith('error')?<div style={{color:'var(--bad)',padding:20,fontSize:13,lineHeight:1.5}}>{String(st).slice(6)||'Error al importar.'}<div style={{marginTop:12}}><button className="btn-secondary" onClick={()=>setSt('ready')}>Volver</button></div></div>:
     <div style={{display:'flex',flexDirection:'column',gap:12}}>
       <button className="btn-primary btn-lg" onClick={async()=>{setSt('loading');const ok=await onInit({cal:[],roca:[],ent:[],lib:[],t25:[],treg:[],dp:[],tests:[DT]});if(!ok)setSt('ready')}}>Empezar de cero</button>
-      <div style={{color:'#6B5F52',fontSize:13}}>— o —</div>
+      <div style={{color:'var(--ink3)',fontSize:13}}>— o —</div>
       <button className="btn-secondary btn-lg" onClick={()=>ref.current?.click()}>📂 Importar CSV</button>
       <input ref={ref} type="file" accept=".csv,.txt,text/*,*/*" style={{display:'none'}} onChange={imp}/>
     </div>}
@@ -268,7 +268,7 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
       <div className="row-2"><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
       <div className="sh a">⌚ Suunto</div>
       <div className="row-3"><F label="FC media" value={form.suunto?.hr_med??''} onChange={v=>sS('hr_med',v)} type="number" min={25} max={230}/><F label="Calorías" value={form.suunto?.kcal??''} onChange={v=>sS('kcal',v)} type="number" min={1}/><F label="Minutos" value={form.suunto?.min??''} onChange={v=>sS('min',v)} type="number" min={1}/></div>
-      <div style={{fontSize:10,color:'#5E5445',marginTop:-4,marginBottom:8,lineHeight:1.4}}>Opcional. Con minutos se mide la duración real en vez de asumir 60; con calorías, el sistémico sale del gasto y no de la fatiga.</div>
+      <div style={{fontSize:10,color:'var(--ink4)',marginTop:-4,marginBottom:8,lineHeight:1.4}}>Opcional. Con minutos se mide la duración real en vez de asumir 60; con calorías, el sistémico sale del gasto y no de la fatiga.</div>
       <div className="sh a">💤 Sueño y Bienestar</div>
       <div className="row-3"><F label="Horas" value={form.sueno_horas} onChange={v=>setForm({...form,sueno_horas:v})} type="number" step="0.5"/><F label="Calidad 1-5" value={form.sueno_calidad} onChange={v=>setForm({...form,sueno_calidad:v})} type="number" min={1} max={5}/><F label="Bienestar 1-5" value={form.bienestar} onChange={v=>setForm({...form,bienestar:v})} type="number" min={1} max={5}/></div>
       <F label="Obs" value={form.obs} onChange={v=>setForm({...form,obs:v})}/>
@@ -277,7 +277,7 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
     </Modal>
     <div className="card lc">{sorted.slice(0,60).map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>{setForm({...r});setEid(r.id);setShow(true)}}>
       <div className="lr-l"><span className="lr-e">{AI[r.activitat]||'📌'}</span><div><div className="lr-m">{r.activitat}</div>{r.lloc&&<div className="lr-s">@ {r.lloc}</div>}{r.sueno_horas&&<div className="lr-s">💤{r.sueno_horas}h q{r.sueno_calidad} 🧠{r.bienestar}</div>}</div></div>
-      <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'#D4563A':'#6B9F4A'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{r.fecha?.slice(5)}</span></div>
+      <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{r.fecha?.slice(5)}</span></div>
     </div>)}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
   </div>);
@@ -337,13 +337,13 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
       <F label={`Tamaño regleta (mm) — último usado: ${lastMm}`} value={form.treg_mm} onChange={v=>setForm({...form,treg_mm:v})} type="number" min={5} max={40}/>
       <div className="row-2"><F label={`Regleta Izq PRE`} value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label={`Regleta Dch PRE`} value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
       <div className="row-2"><F label="Regleta Izq POST" value={form.tri_post} onChange={v=>setForm({...form,tri_post:v})} type="number"/><F label="Regleta Dch POST" value={form.trd_post} onChange={v=>setForm({...form,trd_post:v})} type="number"/></div>
-      {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'#9B3A3A':fl>25?'#D4563A':fl>15?'#E8A838':'#6B9F4A'}}>Pérdida de fuerza: {fl}%</div>}
+      {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'var(--crit)':fl>25?'var(--bad)':fl>15?'var(--warn)':'var(--good)'}}>Pérdida de fuerza: {fl}%</div>}
       <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar estos valores también en la pestaña Tindeq</label>
-      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div><div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>{AGARRES.map(a=>{const on=(b.agarres||[]).includes(a.id);return(<button key={a.id} type="button" onClick={()=>sB(bi,'agarres',on?(b.agarres||[]).filter(x=>x!==a.id):[...(b.agarres||[]),a.id])} style={{padding:'4px 9px',borderRadius:14,fontSize:11,cursor:'pointer',border:'1px solid '+(on?'#E8A838':'#33291F'),background:on?'#E8A838':'transparent',color:on?'#1E1A15':'#8B7D6B'}}>{a.nombre}</button>)})}</div>
+      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div><div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>{AGARRES.map(a=>{const on=(b.agarres||[]).includes(a.id);return(<button key={a.id} type="button" onClick={()=>sB(bi,'agarres',on?(b.agarres||[]).filter(x=>x!==a.id):[...(b.agarres||[]),a.id])} style={{padding:'4px 9px',borderRadius:14,fontSize:11,cursor:'pointer',border:'1px solid '+(on?'var(--brand)':'var(--hair)'),background:on?'var(--brand)':'transparent',color:on?'var(--onChip)':'var(--ink2)'}}>{a.nombre}</button>)})}</div>
         {b.ejercicios.map((ej,ei)=><div key={ei} className="ej-row"><Combo label="" value={ej} onChange={v=>sE(bi,ei,v)} options={allEx}/>{b.ejercicios.length>1&&<button className="ej-rm" onClick={()=>rE(bi,ei)}>✕</button>}</div>)}
         <button className="ej-add" onClick={()=>aE(bi)}>+ Ejercicio</button>
         <div className="row-3" style={{marginTop:8}}><F label="Series" value={b.series} onChange={v=>sB(bi,'series',v)} type="number" min={1}/><F label="Minutos" value={b.minutos} onChange={v=>sB(bi,'minutos',v)} type="number"/><F label="RPE 1-10" value={b.rpe} onChange={v=>sB(bi,'rpe',v)} type="number" min={1} max={10}/></div>
-        {b.minutos&&b.rpe&&<div style={{fontSize:11,color:'#C4724E',textAlign:'right',marginTop:2}}>Carga: {Number(b.minutos)*Number(b.rpe)}</div>}
+        {b.minutos&&b.rpe&&<div style={{fontSize:11,color:'var(--carga)',textAlign:'right',marginTop:2}}>Carga: {Number(b.minutos)*Number(b.rpe)}</div>}
       </div>)}
       <div className="add-block-row"><button className="add-block-btn" onClick={()=>aB('General')}>+ General</button><button className="add-block-btn" onClick={()=>aB('Específica')}>+ Específica</button></div>
       <div className="row-2" style={{marginTop:12}}><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
@@ -353,9 +353,9 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
     </Modal>
     <div className="card lc">{sorted.slice(0,40).map((r,i)=>{const bl=gB(r);const hasB=r.bloques&&Array.isArray(r.bloques)&&r.bloques.length>0;
       return(<div key={r.id||i} className="ent-row" onClick={()=>ed(r)}>
-      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.hora&&<span className="lr-d" style={{marginLeft:4}}>{r.hora}</span>}<span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span style={{color:'#6B9F4A',fontSize:10}}>★</span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span><button type="button" title="Duplicar en la fecha de hoy" onClick={e=>{e.stopPropagation();dup(r)}} style={{marginLeft:6,padding:'2px 7px',borderRadius:6,border:'1px solid #33291F',background:'transparent',color:'#8B7D6B',fontSize:12,cursor:'pointer'}}>⧉</button></div></div>
-      {bl.map((b,bi)=><div key={bi} style={{display:'flex',alignItems:'center',gap:6,marginTop:4,fontSize:11,color:'#8B7D6B'}}><span className={`block-tag-sm ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo?.charAt(0)}</span>{b.series&&<span style={{color:'#9B6BB7'}}>{b.series}×</span>}<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(b.ejercicios||[]).filter(e=>e).join(' · ')}</span></div>)}
-      <div style={{fontSize:11,marginTop:4}}><span style={{color:(r.fatiga_fin||1)>3?'#D4563A':'#6B9F4A'}}>Fatiga {r.fatiga_ini}→{r.fatiga_fin}</span>{r.hr_avg&&<span style={{color:'#9B6BB7',marginLeft:8}}>♥{r.hr_avg}/{r.hr_max}</span>}</div>
+      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.hora&&<span className="lr-d" style={{marginLeft:4}}>{r.hora}</span>}<span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span style={{color:'var(--good)',fontSize:10}}>★</span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span><button type="button" title="Duplicar en la fecha de hoy" onClick={e=>{e.stopPropagation();dup(r)}} style={{marginLeft:6,padding:'2px 7px',borderRadius:6,border:'1px solid var(--hair)',background:'transparent',color:'var(--ink2)',fontSize:12,cursor:'pointer'}}>⧉</button></div></div>
+      {bl.map((b,bi)=><div key={bi} style={{display:'flex',alignItems:'center',gap:6,marginTop:4,fontSize:11,color:'var(--ink2)'}}><span className={`block-tag-sm ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo?.charAt(0)}</span>{b.series&&<span style={{color:'var(--acento)'}}>{b.series}×</span>}<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(b.ejercicios||[]).filter(e=>e).join(' · ')}</span></div>)}
+      <div style={{fontSize:11,marginTop:4}}><span style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>Fatiga {r.fatiga_ini}→{r.fatiga_fin}</span>{r.hr_avg&&<span style={{color:'var(--acento)',marginLeft:8}}>♥{r.hr_avg}/{r.hr_max}</span>}</div>
     </div>)})}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
   </div>);
@@ -381,7 +381,7 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
         {AGARRES.map(a=>{const on=(form.agarres||[]).includes(a.id);return(
           <button key={a.id} type="button" onClick={()=>setForm(f=>({...f,agarres:on?(f.agarres||[]).filter(x=>x!==a.id):[...(f.agarres||[]),a.id]}))}
-            style={{padding:'6px 12px',borderRadius:16,fontSize:13,cursor:'pointer',border:'1px solid '+(on?'#E8A838':'#33291F'),background:on?'#E8A838':'transparent',color:on?'#1E1A15':'#E8D5B5'}}>{a.nombre}</button>)})}
+            style={{padding:'6px 12px',borderRadius:16,fontSize:13,cursor:'pointer',border:'1px solid '+(on?'var(--brand)':'var(--hair)'),background:on?'var(--brand)':'transparent',color:on?'var(--onChip)':'var(--ink)'}}>{a.nombre}</button>)})}
       </div>
       <div className="sh a">Intentos — RPE</div>
       {form.intentos_rpe.map((rpe,idx)=><div key={idx} className="rpe-row"><span className="rpe-num">#{idx+1}</span><div className="rpe-dots">{[1,2,3,4,5,6,7,8,9,10].map(v=><button key={v} className={`rpe-dot${rpe===v?' active':''}`} onClick={()=>sR(idx,v)}>{v}</button>)}</div>{form.intentos_rpe.length>1&&<button className="ej-rm" onClick={()=>setForm({...form,intentos_rpe:form.intentos_rpe.filter((_,i)=>i!==idx)})}>✕</button>}</div>)}
@@ -395,7 +395,7 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
     <div className="card lc">{sorted.slice(0,50).map((r,i)=>{const avg=rpeAvg(r.intentos_rpe);const mx=rpeMax(r.intentos_rpe);
       return(<div key={r.id||i} className="list-row" onClick={()=>{const ir=pRpe(r.intentos_rpe);setForm({...r,intentos_rpe:ir.length?ir:[5]});setEid(r.id);setShow(true)}}>
         <div className="lr-l"><span className={`ed ${enc(r)?'y':'n'}`}>{enc(r)?'✓':'✗'}</span><div><div className="lr-m">{r.via||'—'} <span className="gt">{r.grau}</span></div><div className="lr-s">@ {r.lloc} · {r.intents||pRpe(r.intentos_rpe).length} int.{avg!==null&&<span className="rpe-badge"> ø{avg} ↑{mx}</span>}</div></div></div>
-        <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'#D4563A':'#6B9F4A'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>
+        <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>
       </div>)})}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
   </div>);
