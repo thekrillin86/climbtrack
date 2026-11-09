@@ -15,7 +15,7 @@ import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutl
 import { IconoActividad, Logo } from './iconos.jsx';
 import { Tarjeta, Rango, desdeRango, ConTabla, Tabla, Ranking, GraficaPeso, GraficaCurva, GraficaTindeq, GraficaBarras, tablaTindeq, fechaLarga } from './graficas.jsx';
 import { GaugeIcon, ChartLineIcon, MicroscopeIcon, MapPinIcon, TrophyIcon } from '@phosphor-icons/react';
-import { useTema, cambiarTema } from './tema.js';
+import { useTema, cambiarTema, CLARO } from './tema.js';
 
 const MINFO={
   CTL:{t:'CTL — Fitness crónico',d:'Carga media ponderada de 42 días. Tu base de forma. Sube entrenando, baja al parar. En escalada: 100-300 típico.'},
@@ -58,6 +58,10 @@ function Modal({open,onClose,title,children}){
       <div className="m-head"><h3 className="m-title">{t}</h3><button type="button" onClick={onClose} className="m-close" aria-label="Cerrar"><XIcon size={22} weight="bold"/></button></div>
       <div className="m-body">{c}</div>
     </m.div></m.div>}</AnimatePresence>)}
+/* Confeti al apuntar un encadene nuevo. Solo es un efecto: no toca ningún dato,
+   se carga aparte (no pesa en el arranque) y no sale si el móvil pide reducir
+   el movimiento. */
+function celebrar(){import('canvas-confetti').then(({default:c})=>{const o={disableForReducedMotion:true,zIndex:2000,colors:[CLARO.brand,CLARO.cuerpo,CLARO.sist,CLARO.fuerza,CLARO.warnMark]};c({...o,particleCount:90,spread:70,origin:{y:.72}});setTimeout(()=>c({...o,particleCount:60,spread:110,startVelocity:38,origin:{y:.62}}),180)}).catch(()=>{})}
 function Fab({onClick}){return<m.button type="button" className="fab" onClick={onClick} aria-label="Añadir" initial={{scale:0,rotate:-60}} animate={{scale:1,rotate:0}} transition={{type:'spring',stiffness:420,damping:22,delay:.12}} whileTap={{scale:.9}}><PlusIcon size={30} weight="bold"/></m.button>}
 function DelBtn({onDel,label='este registro'}){return<button type="button" className="btn-del btn-full" onClick={()=>{if(window.confirm(`¿Eliminar ${label}?`))onDel()}}><TrashIcon size={18} weight="bold"/>Eliminar</button>}
 /* Claro u oscuro. Por defecto sigue al móvil; tocarlo lo fija y se recuerda
@@ -397,7 +401,7 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
   const fV=useMemo(()=>{if(!form.lloc)return vias;const s=[...new Set([...data.filter(r=>r.lloc===form.lloc).map(r=>r.via),...lib.filter(r=>r.sector===form.lloc).map(r=>r.via)].filter(Boolean))].sort();return s.length?s:vias},[form.lloc,data,lib,vias]);
   useEffect(()=>{if(!form.via)return;setForm(f=>(f.agarres&&f.agarres.length)?f:{...f,agarres:sugerirAgarres(data,f.via,f.lloc)})},[form.via,form.lloc]);
   const sR=(idx,val)=>{const a=[...form.intentos_rpe];a[idx]=val;setForm({...form,intentos_rpe:a})};
-  const sub=()=>{const ra=form.intentos_rpe.map(v=>Number(v)||0);const e={...form,intentos_rpe:ra,intents:ra.length};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else{save([...data,{...e,id:xi()}]);if(e.encadene==='SÍ'||e.encadene==='SI'){const d=new Date(e.fecha);const ms=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];saveLib([{id:xi(),num:lib.length+1,dia:d.getDate(),mes:ms[d.getMonth()],anyo:d.getFullYear(),sector:e.lloc,via:e.via,grado:e.grau,intentos:e.intents,obs:e.obs},...lib])}}setShow(false);setEid(null);setForm(blank)};
+  const sub=()=>{const ra=form.intentos_rpe.map(v=>Number(v)||0);const e={...form,intentos_rpe:ra,intents:ra.length};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else{save([...data,{...e,id:xi()}]);if(e.encadene==='SÍ'||e.encadene==='SI'){celebrar();const d=new Date(e.fecha);const ms=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];saveLib([{id:xi(),num:lib.length+1,dia:d.getDate(),mes:ms[d.getMonth()],anyo:d.getFullYear(),sector:e.lloc,via:e.via,grado:e.grau,intentos:e.intents,obs:e.obs},...lib])}}setShow(false);setEid(null);setForm(blank)};
   const enc=r=>r.encadene==='SÍ'||r.encadene==='SI'||r.encadene===true;
   return(<div className="page"><h2 className="p-title">Salidas a Roca</h2>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Registrar Vía'}>
@@ -433,7 +437,7 @@ function LibP({data,save,sects}){const[show,setShow]=useState(false);const[eid,s
   const[form,setForm]=useState({dia:'',mes:'',anyo:2026,sector:'',via:'',grado:'',intentos:1,obs:''});
   const gc={};data.forEach(r=>{gc[r.grado]=(gc[r.grado]||0)+1});
   const sorted=useMemo(()=>{let d=[...data];if(flt)d=d.filter(r=>r.grado===flt);return d.sort((a,b)=>(b.anyo||0)-(a.anyo||0)||(MS[b.mes]||0)-(MS[a.mes]||0)||(b.dia||0)-(a.dia||0))},[data,flt]);
-  const sub=()=>{if(eid)save(data.map(r=>r.id===eid?{...form,id:eid}:r));else save([{...form,num:data.length+1,id:xi()},...data]);setShow(false);setEid(null)};
+  const sub=()=>{if(eid)save(data.map(r=>r.id===eid?{...form,id:eid}:r));else{save([{...form,num:data.length+1,id:xi()},...data]);celebrar()}setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Libreta — {data.length}</h2>
     <div className="pills">{['',...Object.keys(gc)].map(g=><button key={g} className={`pill${flt===g?' active':''}`} onClick={()=>setFlt(g)}>{g||'Todos'}{g?` (${gc[g]||0})`:` (${data.length})`}</button>)}</div>
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Añadir'}>
