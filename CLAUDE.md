@@ -314,7 +314,13 @@ volver a migrar.
 
 ```
 src/
-  App.jsx        448 líneas — punto de entrada, pestañas, formularios
+  main.jsx       arranque: letra local, tema, estilos, almacén (idb-keyval)
+  App.jsx        ~650 líneas — carcasa, pestañas, formularios, Peso, Tests,
+                 Tindeq y Stats
+  tema.js        colores por papel, claro y oscuro (ver §12)
+  styles.js      hoja de estilos: todo con variables de tema.js
+  graficas.jsx   piezas comunes de todas las gráficas (ver §12)
+  iconos.jsx     iconos de actividad y logo (Phosphor)
   lib.js         núcleo antiguo: ld/sv, calcBanister, fingerLoad,
                  tendonAlert, calcReadiness, calcCFW, parseRow, ACTS, GR
   migrations.js  sistema de migraciones (fase 1)
@@ -327,14 +333,21 @@ src/
                  sin usar, para poder revertir cambiando una palabra)
   CargaP.jsx     pestaña Carga
   CiclosP.jsx    pestaña Ciclos
-  styles.js
+  NubeP.jsx      pestaña Nube
 ```
 
-- Stack: React 18 + Vite 5 + `vite-plugin-pwa` + recharts.
+- Stack: React 18 + Vite 5 + `vite-plugin-pwa` + recharts + `motion`
+  (animaciones) + `@phosphor-icons/react` + `@fontsource` (Barlow) +
+  `canvas-confetti` + `idb-keyval`.
 - Rama: **`master`** (no `main`).
 - Despliegue: **Netlify**, automático al hacer push a `master`.
   No hay que hacer nada más: `git push` y en un par de minutos está online.
-- No hay tests. Si añades algo con lógica no trivial, plantéalo.
+- Tests: `npm test` (`src/carga.test.mjs`). Antes de cada commit,
+  `npm run build` y `npm test` en verde. Si añades lógica no trivial, añade
+  su prueba.
+- Juan no quiere servidores de desarrollo ni previews que se queden
+  abiertos. Para ver una pantalla se puede empaquetar la app en un fichero
+  local y hacerle la foto con un Chrome invisible que se cierra solo.
 
 ---
 
@@ -360,8 +373,20 @@ src/
       haber más etiquetas mal).
 - [ ] `porAgarre` de `carga.js` no lo pinta ninguna pantalla todavía. El
       cálculo ya reparte por los chips del bloque; falta enseñarlo.
+- [ ] Pasar la CSP de `netlify.toml` de «Report-Only» a obligatoria, con el
+      móvil delante para ver qué carga Firebase Auth (ver §13).
+- [ ] La app en formato `.apk` (Juan lo quiere mirar más adelante).
+- [ ] Propuestas visuales que quedaron fuera por añadir datos nuevos:
+      récords personales, rachas, la curva del test anterior junto a la
+      última. Se proponen aparte, no se meten sin preguntar.
 
 ### Hecho (para que no se vuelva a proponer)
+
+- [x] **Rediseño visual** (09-11-2026): tema claro y oscuro, letra local,
+      iconos Phosphor, gráficas nuevas en Panel, Carga, Tests, Tindeq, Peso y
+      Stats. Solo aspecto: ningún cálculo ni dato cambió. Reglas en §12.
+- [x] **Seguridad básica** (09-11-2026): almacén empaquetado, cabeceras en
+      Netlify, dependencias corregidas. Detalle en §13.
 
 - [x] **Firestore**: `src/nube.js` + pestaña Nube. Copia de seguridad con
       restauración manual, no sincronización bidireccional. Funciona offline:
@@ -402,3 +427,73 @@ patches, `git add`, `git commit`, `npm run dev`, `npm run build`. Lo que queda
 en local es gratis.
 
 Si crees que ya toca desplegar, dilo y espera. No lo hagas tú.
+
+---
+
+## 12. Sistema visual (rediseño del 09-11-2026)
+
+Solo aspecto. Si algo de aquí choca con §4 o §6, mandan §4 y §6.
+
+- **Colores: una sola fuente, `src/tema.js`, por PAPEL** (texto, marca,
+  canal, estado), en dos juegos con las mismas claves: `CLARO` y `OSCURO`.
+  Nada de hex sueltos en las pantallas: el CSS usa `var(--papel)` y las
+  gráficas de recharts (SVG) reciben el color resuelto con `usePaleta()`.
+- **Tema**: por defecto sigue al móvil; el botón de la cabecera lo fija. Se
+  guarda en `localStorage` (`climbtrack-tema`), no en sus datos ni en la nube.
+- **Un color por cosa en toda la app**: dedos naranja, cuerpo azul,
+  sistémico aguamarina, fuerza violeta; en Tindeq, izquierda violeta y
+  derecha rosa. Validado (daltonismo, separación, contraste) en los dos
+  modos. Si cambias uno, vuelve a validar.
+- **Texto en tinta de texto.** Si un color de marca o de estado hace de
+  texto, va su variante `…Ink` (más oscura en claro). Todo el texto pasa
+  4,5:1 sobre tarjeta y fondo.
+- **Estado (bien / ojo / mal) siempre con texto o icono**, nunca solo color.
+  Los colores de estado no se usan para pintar series.
+- **Gráficas: `src/graficas.jsx`.** Una escala por gráfica, nunca dos ejes.
+  Los canales de carga nunca apilados ni sumados (§4a): un panel por canal.
+  Rejilla fina; el número en tinta, el color en la marca. Al tocar sale el
+  valor. **Toda gráfica tiene «Ver como tabla».** Eje de tiempo real: los
+  huecos entre registros se ven como huecos.
+- **Iconos: Phosphor duotono**, nunca emojis (cada móvil los pinta distinto
+  y no se pueden colorear). Los de actividad están en `iconos.jsx`.
+- **Letra local**: Barlow y Barlow Condensed con `@fontsource` (subconjunto
+  latin). No volver a Google Fonts: le cuenta a Google cada vez que Juan
+  abre la app y no carga sin cobertura.
+- **Movimiento**: `motion` con `LazyMotion` estricto (usa `m.div`, nunca
+  `motion.div`, o revienta) y `reducedMotion="user"`. Las animaciones CSS van
+  dentro de `prefers-reduced-motion: no-preference`. **No pongas `transform`
+  en `.page`**: rompe los elementos fijos (el botón + y las hojas).
+- Las hojas (`Modal`) bajan al cerrarse con el contenido congelado: no
+  quites el `useRef` de `Modal`, o se verá el formulario vaciándose.
+- Confeti solo al apuntar un encadene nuevo (Roca o Libreta). Es un efecto:
+  no toca datos.
+- Dianas táctiles de 44 px o más; campos de texto a 16 px.
+
+---
+
+## 13. Seguridad (09-11-2026)
+
+- **Nada se descarga de servidores ajenos al abrir la app.** `idb-keyval` va
+  empaquetado con versión fija; antes se bajaba de esm.sh en cada arranque.
+  El almacén sigue siendo `keyval-store` / `keyval` (comprobado en su
+  código). No cambies de librería ni de versión mayor sin volver a mirarlo:
+  ahí están todos sus datos.
+- **Cabeceras en `netlify.toml`**: nosniff, sin marcos (X-Frame-Options y
+  `frame-ancestors`), sin cámara, micro, ubicación ni pagos, HSTS y COOP. La
+  CSP obligatoria es la mínima que no puede romper nada; la completa va en
+  **Report-Only**, porque en el móvil Firebase Auth carga `apis.google.com` y
+  un iframe de `firebaseapp.com`. Endurecerla sin probarlo en su móvil podría
+  dejarle sin poder entrar en la Nube.
+- **Dependencias nuevas**: versión exacta (`--save-exact`), instaladas con
+  `--ignore-scripts` y con al menos 14 días publicadas. `re2js` está fijado a
+  2.8.8 con `overrides` por eso.
+- **`npm audit`**: quedan avisos de `@grpc/grpc-js`. Lo usa Firestore solo
+  en Node y no llega a `dist` (comprobado). Quitarlos exige bajar a
+  firebase 9: no se hace.
+- **La clave de `firebaseConfig.js` es pública por diseño.** Lo que protege
+  los datos es la consola de Firebase, que no se ve desde aquí: reglas de
+  Firestore que solo dejan leer y escribir `usuarios/{uid}/**` a ese mismo
+  `uid`; lo recomendado es además desactivar el registro de cuentas nuevas en
+  Authentication y restringir la clave al dominio de la app en Google Cloud.
+- En `src` no hay `dangerouslySetInnerHTML`, `innerHTML` ni `eval`. Lo que
+  llega de la bandeja de Talaia se pinta como texto. Mantenlo así.
