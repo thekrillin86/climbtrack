@@ -19,7 +19,7 @@ import {
   HandIcon, PersonSimpleIcon, HeartbeatIcon, GaugeIcon, HourglassMediumIcon, CaretDownIcon,
   FeatherIcon, FireIcon, BedIcon,
 } from '@phosphor-icons/react';
-import { seriesCarga, fatigaAcumulada, PARAMS } from './carga.js';
+import { seriesCarga, fatigaAcumulada, perfilEnFecha, PARAMS } from './carga.js';
 import { td } from './lib.js';
 import { ConTabla, Tabla, Tarjeta, DIAS, aT } from './graficas.jsx';
 
@@ -299,6 +299,11 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
   const fechaHoy = cap(`${DIAS[hoyD.getUTCDay()]} ${hoyD.getUTCDate()} de ${MESES_L[hoyD.getUTCMonth()]}`);
   const pos = conTest ? 50 + Math.max(-10, Math.min(10, test.pct)) * 5 : 50;
   const N = NIVEL[vent.nivel] || NIVEL.green;
+  // El umbral del pie es el SUYO, el de su test en Tests (CLAUDE.md §4b). El de
+  // PARAMS es solo el respaldo del estudio, y entonces la pantalla lo dice.
+  const perfilHoy = useMemo(() => perfilEnFecha(tests, hoy), [tests, hoy]);
+  const umbralTuyo = !!perfilHoy?.umbralOclusion;
+  const umbral = perfilHoy?.umbralOclusion || PARAMS.umbralOclusion;
 
   return (
     <div className="page">
@@ -430,7 +435,7 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
       <p className="foot">
         Sin predicciones: todo lo de esta pantalla describe lo que ya ha pasado.
         Los días se cuentan enteros porque las sesiones se apuntan por fecha, sin hora.
-        Umbral de oclusión {Math.round(PARAMS.umbralOclusion * 100)} % · τ dedos {PARAMS.tau.dedos} d ·
+        Umbral de oclusión {Math.round(umbral * 100)} %{umbralTuyo ? ' (el tuyo, de Tests)' : ' (la media de un estudio: no tienes el OT en Tests)'} · τ dedos {PARAMS.tau.dedos} d ·
         el % de bloque, travesía y vía va sin umbral.
       </p>
     </div>
