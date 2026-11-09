@@ -494,6 +494,9 @@ Solo aspecto. Si algo de aquí choca con §4 o §6, mandan §4 y §6.
   los datos es la consola de Firebase, que no se ve desde aquí: reglas de
   Firestore que solo dejan leer y escribir `usuarios/{uid}/**` a ese mismo
   `uid`; lo recomendado es además desactivar el registro de cuentas nuevas en
-  Authentication y restringir la clave al dominio de la app en Google Cloud.
+  Authentication. Restringir la clave al dominio de la app (Google Cloud)
+  también se suele recomendar, pero **antes hay que mirar si el Apps Script
+  de Talaia usa esa misma clave**: una restricción por dominio le cortaría el
+  paso y la bandeja dejaría de llegar.
 - En `src` no hay `dangerouslySetInnerHTML`, `innerHTML` ni `eval`. Lo que
   llega de la bandeja de Talaia se pinta como texto. Mantenlo así.
