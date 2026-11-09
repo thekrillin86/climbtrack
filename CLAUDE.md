@@ -493,9 +493,9 @@ Solo aspecto. Si algo de aquí choca con §4 o §6, mandan §4 y §6.
 - **La clave de `firebaseConfig.js` es pública por diseño.** Lo que protege
   los datos es la consola de Firebase, que no se ve desde aquí: reglas de
   Firestore que solo dejan leer y escribir `usuarios/{uid}/**` a ese mismo
-  `uid` (Juan las revisó el 09-11-2026 y están así); lo recomendado es además
-  desactivar el registro de cuentas nuevas en Authentication. Restringir la
-  clave al dominio de la app (Google Cloud)
+  `uid` (Juan las revisó el 09-11-2026 y están así), y el registro de cuentas
+  nuevas está desactivado en Authentication (también desde el 09-11-2026).
+  Restringir la clave al dominio de la app (Google Cloud)
   también se suele recomendar, pero **antes hay que mirar si el Apps Script
   de Talaia usa esa misma clave**: una restricción por dominio le cortaría el
   paso y la bandeja dejaría de llegar.
