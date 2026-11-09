@@ -133,7 +133,7 @@ export default function NubeP({ onRestaurar }) {
       {est.disponible && !est.usuario && (
         <Caja>
           <div className="sh a" style={{ marginBottom: 6 }}>Entrar</div>
-          <div style={{ fontSize: 12, color: 'var(--ink2)', marginBottom: 14, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13, color: 'var(--ink2)', marginBottom: 14, lineHeight: 1.5 }}>
             Solo hace falta una vez. La sesión se queda guardada en el móvil hasta
             que cierres sesión a mano.
           </div>
@@ -157,32 +157,32 @@ export default function NubeP({ onRestaurar }) {
           <div style={{ color: 'var(--bad)', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
             Este dispositivo tiene MENOS datos que la nube
           </div>
-          <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 10 }}>
             No se ha subido nada, a propósito: subir desde aquí borraría en la nube
             justo lo que falta. Hay dos motivos posibles y la acción no es la misma.
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 8 }}>
+          <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 8 }}>
             <b>1. Este dispositivo es nuevo o está a medias.</b> Un móvil recién
             instalado, o la app abierta en localhost, que tiene su propio IndexedDB
             vacío. No has borrado nada: es que estos datos nunca han estado aquí.
             Pulsa <b>Restaurar desde la nube</b>.
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 10 }}>
             <b>2. Has borrado esos registros a propósito</b> en este móvil y quieres
             que la nube refleje el borrado. Entonces pulsa <b>Subir todo ahora</b>:
             es la única forma de que la nube se quede con menos de lo que tenía, y
             por eso no ocurre sola.
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--serious)', lineHeight: 1.5, marginBottom: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--serious)', lineHeight: 1.5, marginBottom: 10 }}>
             Mientras siga así no se guarda la foto semanal, para no dejar congelado
             un estado incompleto: la foto de una semana solo se escribe una vez.
           </div>
 
           {est.avisoRestaurar.map(x => (
-            <div key={x} style={{ fontSize: 11, color: 'var(--serious)' }}>{x}</div>
+            <div key={x} style={{ fontSize: 12, color: 'var(--serious)' }}>{x}</div>
           ))}
         </Caja>
       )}
@@ -197,7 +197,7 @@ export default function NubeP({ onRestaurar }) {
               </div>
               <button className="btn-secondary" onClick={salir} disabled={ocupado}>Salir</button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ink2)', marginTop: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink2)', marginTop: 12, lineHeight: 1.5 }}>
               {est.pendientes > 0
                 ? `${est.pendientes} cambio(s) esperando a subir.`
                 : est.ultimaSubida
@@ -205,7 +205,7 @@ export default function NubeP({ onRestaurar }) {
                   : 'Sin subidas todavía en esta sesión.'}
             </div>
             {est.ultimoError && (
-              <div style={{ fontSize: 11, color: 'var(--serious)', marginTop: 6 }}>{est.ultimoError}</div>
+              <div style={{ fontSize: 12, color: 'var(--serious)', marginTop: 6 }}>{est.ultimoError}</div>
             )}
           </Caja>
 
@@ -216,7 +216,7 @@ export default function NubeP({ onRestaurar }) {
               const diff = typeof l === 'number' && typeof n === 'number' && l !== n;
               return (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between',
-                                      fontSize: 12, padding: '3px 0',
+                                      fontSize: 13, padding: '3px 0',
                                       color: diff ? 'var(--warn)' : 'var(--ink2)' }}>
                   <span>{NOMBRES[k] || k}</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{l} · {n}</span>
@@ -229,31 +229,31 @@ export default function NubeP({ onRestaurar }) {
               <span>Total</span>
               <span>{totalLocal ?? '·'} · {nube?.total ?? '·'}</span>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ink4)', marginTop: 8 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 8 }}>
               Primer número: lo que hay en este móvil. Segundo: lo que hay en la nube.
             </div>
           </Caja>
 
           <Caja>
             <div className="sh a" style={{ marginBottom: 4 }}>Fotos semanales</div>
-            <div style={{ fontSize: 11, color: 'var(--ink2)', marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink2)', marginBottom: 10, lineHeight: 1.5 }}>
               El móvil y la nube están sincronizados: si algo borra un registro, se borra
               en los dos. Estas fotos están congeladas — se guarda una por semana y no
               cambian nunca.
             </div>
             {fotos === null ? (
-              <div style={{ fontSize: 12, color: 'var(--ink4)' }}>Cargando...</div>
+              <div style={{ fontSize: 13, color: 'var(--ink4)' }}>Cargando...</div>
             ) : fotos.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--ink2)' }}>
+              <div style={{ fontSize: 13, color: 'var(--ink2)' }}>
                 Todavía no hay ninguna. Pulsa el botón de abajo para hacer la primera.
               </div>
             ) : fotos.map(f => (
               <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
-                <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1 }}>
+                <span style={{ fontSize: 13, color: 'var(--ink)', flex: 1 }}>
                   Semana del {f.id.split('-').reverse().join('/')}
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--ink2)' }}>{f.total} reg.</span>
-                <button className="btn-secondary" style={{ fontSize: 11, padding: '4px 10px' }}
+                <span style={{ fontSize: 12, color: 'var(--ink2)' }}>{f.total} reg.</span>
+                <button className="btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }}
                         disabled={ocupado} onClick={() => hacerVolverA(f.id)}>Volver aquí</button>
               </div>
             ))}
@@ -270,7 +270,7 @@ export default function NubeP({ onRestaurar }) {
                     style={{ width: '100%' }}>
               Restaurar desde la nube
             </button>
-            <div style={{ fontSize: 11, color: 'var(--ink2)', marginTop: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink2)', marginTop: 12, lineHeight: 1.5 }}>
               La subida es automática: cada vez que guardas algo se sube solo.
               Estos botones son para forzarlo o para recuperar en un móvil nuevo.
               Restaurar pide confirmación si fuera a dejar menos registros de los que hay.

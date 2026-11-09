@@ -10,7 +10,10 @@ import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
 import CiclosP from './CiclosP.jsx';
-import { CSS } from "./styles.js";
+import { m, AnimatePresence } from 'motion/react';
+import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
+import { IconoActividad, Logo } from './iconos.jsx';
+import { useTema, cambiarTema } from './tema.js';
 
 const MINFO={
   CTL:{t:'CTL — Fitness crónico',d:'Carga media ponderada de 42 días. Tu base de forma. Sube entrenando, baja al parar. En escalada: 100-300 típico.'},
@@ -22,7 +25,7 @@ const MINFO={
   ForceLoss:{t:'Pérdida de fuerza',d:'Caída % entre series o pre/post sesión. <15% ligera, 15-25% moderada, 25-35% alta, >35% excesiva.'}
 };
 function InfoBtn({id}){const[o,sO]=useState(false);const m=MINFO[id];if(!m)return null;
-  return(<><button className="info-btn" onClick={e=>{e.stopPropagation();sO(true)}}>ⓘ</button>
+  return(<><button type="button" className="info-btn" aria-label="Qué significa" onClick={e=>{e.stopPropagation();sO(true)}}><InfoIcon size={16} weight="bold"/></button>
     {o&&<div className="m-overlay" onClick={()=>sO(false)}><div className="info-modal" onClick={e=>e.stopPropagation()}>
       <div className="info-t">{m.t}</div><div className="info-d">{m.d}</div>
       <button className="btn-primary btn-full" style={{marginTop:0}} onClick={()=>sO(false)}>OK</button>
@@ -41,9 +44,26 @@ function F({label,value,onChange,type='text',step,min,max,options}){
   if(options)return(<div className="f-wrap"><label className="f-label">{label}</label><select className="f-input" value={value||''} onChange={e=>onChange(e.target.value)}><option value="">—</option>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
   return(<div className="f-wrap"><label className="f-label">{label}</label><input className="f-input" type={type} value={value??''} step={step} min={min} max={max} onChange={e=>onChange(type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value)}/></div>);
 }
-function Modal({open,onClose,title,children}){if(!open)return null;return(<div className="m-overlay" onClick={onClose}><div className="m-box" onClick={e=>e.stopPropagation()}><div className="m-head"><h3 className="m-title">{title}</h3><button onClick={onClose} className="m-close">✕</button></div><div className="m-body">{children}</div></div></div>)}
-function Fab({onClick}){return<button className="fab" onClick={onClick}>＋</button>}
-function DelBtn({onDel,label='este registro'}){return<button className="btn-del btn-full" onClick={()=>{if(window.confirm(`¿Eliminar ${label}?`))onDel()}}>🗑 Eliminar</button>}
+/* La hoja sube desde abajo y, al cerrarse, baja con lo último que enseñaba:
+   los formularios se vacían en el mismo instante en que se cierran y, sin
+   esto, durante la animación se vería el título de «Nuevo» o el formulario
+   en blanco. */
+function Modal({open,onClose,title,children}){
+  const ult=useRef({title,children});if(open)ult.current={title,children};
+  const{title:t,children:c}=ult.current;
+  return(<AnimatePresence>{open&&<m.div key="hoja" className="m-overlay" onClick={onClose} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}>
+    <m.div className="m-box" role="dialog" aria-modal="true" aria-label={t} onClick={e=>e.stopPropagation()} initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',stiffness:380,damping:36}}>
+      <div className="m-head"><h3 className="m-title">{t}</h3><button type="button" onClick={onClose} className="m-close" aria-label="Cerrar"><XIcon size={22} weight="bold"/></button></div>
+      <div className="m-body">{c}</div>
+    </m.div></m.div>}</AnimatePresence>)}
+function Fab({onClick}){return<m.button type="button" className="fab" onClick={onClick} aria-label="Añadir" initial={{scale:0,rotate:-60}} animate={{scale:1,rotate:0}} transition={{type:'spring',stiffness:420,damping:22,delay:.12}} whileTap={{scale:.9}}><PlusIcon size={30} weight="bold"/></m.button>}
+function DelBtn({onDel,label='este registro'}){return<button type="button" className="btn-del btn-full" onClick={()=>{if(window.confirm(`¿Eliminar ${label}?`))onDel()}}><TrashIcon size={18} weight="bold"/>Eliminar</button>}
+/* Claro u oscuro. Por defecto sigue al móvil; tocarlo lo fija y se recuerda
+   en este navegador (no en tus datos ni en la nube). */
+function BotonTema(){const t=useTema();const osc=t==='oscuro';
+  return(<button type="button" className="icon-btn" onClick={cambiarTema} aria-pressed={osc} aria-label={osc?'Pasar a modo claro':'Pasar a modo oscuro'}>
+    <AnimatePresence mode="wait" initial={false}><m.span key={t} style={{display:'grid'}} initial={{rotate:-90,scale:.4,opacity:0}} animate={{rotate:0,scale:1,opacity:1}} exit={{rotate:90,scale:.4,opacity:0}} transition={{duration:.22}}>{osc?<SunIcon size={22} weight="duotone"/>:<MoonIcon size={22} weight="duotone"/>}</m.span></AnimatePresence>
+  </button>)}
 
 /* ───────── MAIN APP ───────── */
 export default function App(){
@@ -108,18 +128,19 @@ export default function App(){
     if(window.confirm('¿Se ha descargado el fichero correctamente?\n\nPulsa Aceptar solo si lo ves en Descargas. Si no, Cancelar y el aviso de copia seguirá activo.')){await markBackup();setBkp(await backupStatus())}
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
-  const tabs=[{id:'dash',icon:'📊',label:'Home'},{id:'cal',icon:'📅',label:'Rutina'},{id:'ent',icon:'💪',label:'Entreno'},{id:'roca',icon:'🏔️',label:'Roca'},{id:'more',icon:'☰',label:'Más'}];
-  const moreP=[{id:'lib',icon:'📕',label:'Libreta'},{id:'tindeq',icon:'📏',label:'Tindeq'},{id:'peso',icon:'⚖️',label:'Peso'},{id:'test',icon:'🧪',label:'Tests'},{id:'carga',icon:'\u26A1',label:'Carga'},{id:'ciclos',icon:'\u{1F504}',label:'Ciclos'},{id:'nube',icon:'\u2601',label:'Nube'},{id:'stats',icon:'📈',label:'Stats'},{id:'export',icon:'📥',label:'Backup'}];
+  const tabs=[{id:'dash',Icono:HouseIcon,label:'Home'},{id:'cal',Icono:CalendarCheckIcon,label:'Rutina'},{id:'ent',Icono:BarbellIcon,label:'Entreno'},{id:'roca',Icono:MountainsIcon,label:'Roca'},{id:'more',Icono:DotsThreeOutlineIcon,label:'Más'}];
+  const moreP=[{id:'lib',Icono:BookOpenTextIcon,c:'var(--brand)',label:'Libreta'},{id:'tindeq',Icono:RulerIcon,c:'var(--izq)',label:'Tindeq'},{id:'peso',Icono:ScalesIcon,c:'var(--peso)',label:'Peso'},{id:'test',Icono:FlaskIcon,c:'var(--fuerza)',label:'Tests'},{id:'carga',Icono:LightningIcon,c:'var(--dedos)',label:'Carga'},{id:'ciclos',Icono:ArrowsClockwiseIcon,c:'var(--cuerpo)',label:'Ciclos'},{id:'nube',Icono:CloudIcon,c:'var(--info)',label:'Nube'},{id:'stats',Icono:ChartLineUpIcon,c:'var(--sist)',label:'Stats'},{id:'export',Icono:DownloadSimpleIcon,c:'var(--ink2)',label:'Backup'}];
 
-  if(loading)return(<div className="app"><style>{CSS}</style><div className="loading"><div style={{fontSize:48}}>🧗</div><div style={{color:'var(--ink2)'}}>ClimbTrack v6</div></div></div>);
+  if(loading)return(<div className="app"><div className="loading"><Logo size={56}/><div>ClimbTrack v6</div></div></div>);
   if(fallo)return<PantallaFallo msg={fallo}/>;
   if(!init)return<InitP onInit={initData}/>;
 
-  return(<div className="app"><style>{CSS}</style>
-    <header className="header"><div className="h-brand"><span style={{fontSize:22}}>🧗</span><b style={{fontSize:17}}>ClimbTrack</b><span className="h-ver">v6</span></div>
-      {bkp.overdue&&<button className="bkp-warn" onClick={doExport}>⚠ Backup {bkp.never?'nunca':bkp.days+'d'}</button>}
+  return(<div className="app">
+    <header className="header"><div className="h-brand"><Logo/><b>ClimbTrack</b><span className="h-ver">v6</span></div>
+      {bkp.overdue&&<button type="button" className="bkp-warn" onClick={doExport}><WarningIcon size={16} weight="bold"/>Backup {bkp.never?'nunca':bkp.days+'d'}</button>}
+      <BotonTema/>
     </header>
-    {pendientes.length>0&&<button onClick={()=>{setErrBandeja('');setVerBandeja(true)}} style={{display:'block',width:'calc(100% - 24px)',margin:'8px 12px 0',padding:'10px 12px',borderRadius:10,border:'1px solid var(--brand)',background:'color-mix(in srgb,var(--brand) 13.3%,transparent)',color:'var(--brand)',fontWeight:600,fontSize:13,fontFamily:'inherit',cursor:'pointer',textAlign:'left'}}>📬 Talaia propone {pendientes.length===1?'1 registro':pendientes.length+' registros'} · toca para revisar</button>}
+    {pendientes.length>0&&<button type="button" className="bandeja-aviso" onClick={()=>{setErrBandeja('');setVerBandeja(true)}}><TrayIcon size={22} weight="duotone"/><span>Talaia propone {pendientes.length===1?'1 registro':pendientes.length+' registros'} · toca para revisar</span></button>}
     <Modal open={verBandeja} onClose={()=>setVerBandeja(false)} title="Propuestas de Talaia">
       {errBandeja&&<div style={{color:'var(--bad)',fontSize:12,marginBottom:8}}>{errBandeja}</div>}
       {pendientes.length===0&&<div style={{color:'var(--ink2)',fontSize:13}}>No hay nada pendiente.</div>}
@@ -146,8 +167,13 @@ export default function App(){
       {page==='nube'&&<NubeP onRestaurar={restaurarDeNube}/>}
       {page==='stats'&&<StP cal={cal} ent={ent} roca={roca} lib={lib} dp={dp} t25={t25} treg={treg}/>}
     </main>
-    {menuOpen&&<div className="m-overlay" onClick={()=>setMenuOpen(false)}><div className="more-menu" onClick={e=>e.stopPropagation()}><div className="more-handle"/>{moreP.map(p=><button key={p.id} className="more-item" onClick={()=>{if(p.id==='export'){doExport();setMenuOpen(false)}else{setPage(p.id);setMenuOpen(false)}}}><span style={{fontSize:24}}>{p.icon}</span><span>{p.label}</span></button>)}</div></div>}
-    <nav className="bottom-nav">{tabs.map(t=><button key={t.id} className={`nav-tab${page===t.id||(t.id==='more'&&['lib','tindeq','peso','test','stats','carga','ciclos'].includes(page))?' active':''}`} onClick={()=>{if(t.id==='more')setMenuOpen(!menuOpen);else{setPage(t.id);setMenuOpen(false)}}}><span className="nav-icon">{t.icon}</span><span className="nav-label">{t.label}</span></button>)}</nav>
+    <AnimatePresence>{menuOpen&&<m.div key="mas" className="m-overlay" onClick={()=>setMenuOpen(false)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}>
+      <m.div className="more-menu" role="dialog" aria-modal="true" aria-label="Más secciones" onClick={e=>e.stopPropagation()} initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',stiffness:380,damping:34}}>
+        <div className="more-handle"/>
+        {moreP.map((p,n)=><m.button key={p.id} type="button" className={'more-item'+(page===p.id?' on':'')} initial={{opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{delay:.05+n*.035}} whileTap={{scale:.94}} onClick={()=>{if(p.id==='export'){doExport();setMenuOpen(false)}else{setPage(p.id);setMenuOpen(false)}}}><span className="badge" style={{'--c':p.c}}><p.Icono size={26} weight="duotone"/></span><span>{p.label}</span></m.button>)}
+      </m.div></m.div>}</AnimatePresence>
+    <nav className="bottom-nav" aria-label="Secciones">{tabs.map(t=>{const on=page===t.id||(t.id==='more'&&['lib','tindeq','peso','test','stats','carga','ciclos','nube'].includes(page));
+      return<button key={t.id} type="button" className={`nav-tab${on?' active':''}`} aria-current={on&&t.id!=='more'?'page':undefined} onClick={()=>{if(t.id==='more')setMenuOpen(!menuOpen);else{setPage(t.id);setMenuOpen(false)}}}><m.span className="nav-icon" whileTap={{scale:.86}}><t.Icono size={24} weight={on?'fill':'duotone'}/></m.span><span className="nav-label">{t.label}</span></button>})}</nav>
   </div>);
 }
 
@@ -168,14 +194,14 @@ function InitP({onInit}){const[st,setSt]=useState('ready');const ref=useRef(null
             else if(f==='agarres')o[f]=s.split(',').map(x=>x.trim()).filter(Boolean)});
           if(o.intentos_rpe)o.intentos_rpe=pRpe(o.intentos_rpe);sd[k].push(o)}}
       const total=Object.values(sd).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0);if(total<=1)throw new Error('El fichero no contiene datos reconocibles. Comprueba que es el CSV exportado por ClimbTrack y no otro.');const ok=await onInit(sd);setSt(ok?'done':'ready')}catch(err){console.error(err);setSt('error:'+(err?.message||err))}};
-  return(<div className="app"><style>{CSS}</style><div className="init-page"><div style={{textAlign:'center',maxWidth:400,width:'100%'}}>
-    <div style={{fontSize:64,marginBottom:20}}>🧗</div><h1 style={{fontSize:32,fontWeight:700,marginBottom:8}}>ClimbTrack <span style={{fontSize:16,color:'var(--brand)'}}>v6</span></h1>
-    <p style={{color:'var(--ink3)',lineHeight:1.6,marginBottom:32}}>Escalada · Carga · Recuperación</p>
-    {st==='loading'?<div style={{color:'var(--brand)',padding:20}}>Importando...</div>:String(st).startsWith('error')?<div style={{color:'var(--bad)',padding:20,fontSize:13,lineHeight:1.5}}>{String(st).slice(6)||'Error al importar.'}<div style={{marginTop:12}}><button className="btn-secondary" onClick={()=>setSt('ready')}>Volver</button></div></div>:
+  return(<div className="app"><div className="init-page"><div style={{textAlign:'center',maxWidth:400,width:'100%'}}>
+    <div style={{display:'grid',placeItems:'center',marginBottom:16}}><Logo size={84}/></div><h1 style={{fontFamily:'var(--f-display)',fontSize:46,fontWeight:700,lineHeight:1,marginBottom:8}}>ClimbTrack <span style={{fontSize:18,color:'var(--brandInk)'}}>v6</span></h1>
+    <p style={{color:'var(--ink2)',lineHeight:1.6,marginBottom:32}}>Escalada · Carga · Recuperación</p>
+    {st==='loading'?<div style={{color:'var(--brandInk)',padding:20,fontWeight:600}}>Importando...</div>:String(st).startsWith('error')?<div style={{color:'var(--bad)',padding:20,fontSize:13,lineHeight:1.5}}>{String(st).slice(6)||'Error al importar.'}<div style={{marginTop:12}}><button className="btn-secondary" onClick={()=>setSt('ready')}>Volver</button></div></div>:
     <div style={{display:'flex',flexDirection:'column',gap:12}}>
       <button className="btn-primary btn-lg" onClick={async()=>{setSt('loading');const ok=await onInit({cal:[],roca:[],ent:[],lib:[],t25:[],treg:[],dp:[],tests:[DT]});if(!ok)setSt('ready')}}>Empezar de cero</button>
-      <div style={{color:'var(--ink3)',fontSize:13}}>— o —</div>
-      <button className="btn-secondary btn-lg" onClick={()=>ref.current?.click()}>📂 Importar CSV</button>
+      <div style={{color:'var(--ink2)',fontSize:14}}>— o —</div>
+      <button className="btn-secondary btn-lg" onClick={()=>ref.current?.click()}><FolderOpenIcon size={22} weight="duotone"/>Importar CSV</button>
       <input ref={ref} type="file" accept=".csv,.txt,text/*,*/*" style={{display:'none'}} onChange={imp}/>
     </div>}
   </div></div></div>);
@@ -266,17 +292,17 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
       <Combo label="Lugar" value={form.lloc||''} onChange={v=>setForm({...form,lloc:v})} options={llocs}/>
       <div className="row-2"><F label="Macro" value={form.macro} onChange={v=>setForm({...form,macro:v})} type="number" min={1}/><F label="Meso" value={form.meso} onChange={v=>setForm({...form,meso:v})} type="number" min={1}/></div>
       <div className="row-2"><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
-      <div className="sh a">⌚ Suunto</div>
+      <div className="sh a"><WatchIcon size={18} weight="duotone"/>Suunto</div>
       <div className="row-3"><F label="FC media" value={form.suunto?.hr_med??''} onChange={v=>sS('hr_med',v)} type="number" min={25} max={230}/><F label="Calorías" value={form.suunto?.kcal??''} onChange={v=>sS('kcal',v)} type="number" min={1}/><F label="Minutos" value={form.suunto?.min??''} onChange={v=>sS('min',v)} type="number" min={1}/></div>
-      <div style={{fontSize:10,color:'var(--ink4)',marginTop:-4,marginBottom:8,lineHeight:1.4}}>Opcional. Con minutos se mide la duración real en vez de asumir 60; con calorías, el sistémico sale del gasto y no de la fatiga.</div>
-      <div className="sh a">💤 Sueño y Bienestar</div>
+      <div style={{fontSize:12,color:'var(--ink2)',marginTop:-4,marginBottom:8,lineHeight:1.45}}>Opcional. Con minutos se mide la duración real en vez de asumir 60; con calorías, el sistémico sale del gasto y no de la fatiga.</div>
+      <div className="sh a"><MoonStarsIcon size={18} weight="duotone"/>Sueño y Bienestar</div>
       <div className="row-3"><F label="Horas" value={form.sueno_horas} onChange={v=>setForm({...form,sueno_horas:v})} type="number" step="0.5"/><F label="Calidad 1-5" value={form.sueno_calidad} onChange={v=>setForm({...form,sueno_calidad:v})} type="number" min={1} max={5}/><F label="Bienestar 1-5" value={form.bienestar} onChange={v=>setForm({...form,bienestar:v})} type="number" min={1} max={5}/></div>
       <F label="Obs" value={form.obs} onChange={v=>setForm({...form,obs:v})}/>
       <button className="btn-primary btn-full" onClick={sub}>{eid?'Guardar':'Registrar'}</button>
       {eid&&<DelBtn onDel={()=>{save(data.filter(r=>r.id!==eid));setShow(false);setEid(null)}} label="esta actividad"/>}
     </Modal>
     <div className="card lc">{sorted.slice(0,60).map((r,i)=><div key={r.id||i} className="list-row" onClick={()=>{setForm({...r});setEid(r.id);setShow(true)}}>
-      <div className="lr-l"><span className="lr-e">{AI[r.activitat]||'📌'}</span><div><div className="lr-m">{r.activitat}</div>{r.lloc&&<div className="lr-s">@ {r.lloc}</div>}{r.sueno_horas&&<div className="lr-s">💤{r.sueno_horas}h q{r.sueno_calidad} 🧠{r.bienestar}</div>}</div></div>
+      <div className="lr-l"><IconoActividad a={r.activitat}/><div style={{minWidth:0}}><div className="lr-m">{r.activitat}</div>{r.lloc&&<div className="lr-s">@ {r.lloc}</div>}{r.sueno_horas&&<div className="lr-s"><MoonStarsIcon size={14} weight="duotone"/>{r.sueno_horas}h · q{r.sueno_calidad} · <SmileyIcon size={14} weight="duotone"/>{r.bienestar}</div>}</div></div>
       <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{r.fecha?.slice(5)}</span></div>
     </div>)}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
@@ -330,20 +356,20 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
     <Modal open={show} onClose={()=>setShow(false)} title={eid?'Editar':'Nuevo Entrenamiento'}>
       <div className="row-3"><F label="Fecha" value={form.fecha} onChange={v=>setForm({...form,fecha:v})} type="date"/><F label="Hora" value={form.hora} onChange={v=>setForm({...form,hora:v})} type="time"/><F label="Tipo" value={form.tipo} onChange={v=>setForm({...form,tipo:v})} options={TIPOS}/></div>
       <div className="row-2"><F label="Macro" value={form.macro} onChange={v=>setForm({...form,macro:v})} type="number"/><F label="Meso" value={form.meso} onChange={v=>setForm({...form,meso:v})} type="number"/></div>
-      <div className="sh a">⌚ Suunto</div>
+      <div className="sh a"><WatchIcon size={18} weight="duotone"/>Suunto</div>
       <div className="row-3"><F label="FC media" value={form.hr_avg} onChange={v=>setForm({...form,hr_avg:v})} type="number"/><F label="FC máx" value={form.hr_max} onChange={v=>setForm({...form,hr_max:v})} type="number"/><F label="Calorías" value={form.calorias} onChange={v=>setForm({...form,calorias:v})} type="number"/></div>
-      <div className="sh a">📏 Tindeq</div>
+      <div className="sh a"><RulerIcon size={18} weight="duotone"/>Tindeq</div>
       <div className="row-2"><F label="25mm Izq" value={form.t25i} onChange={v=>setForm({...form,t25i:v})} type="number"/><F label="25mm Dch" value={form.t25d} onChange={v=>setForm({...form,t25d:v})} type="number"/></div>
       <F label={`Tamaño regleta (mm) — último usado: ${lastMm}`} value={form.treg_mm} onChange={v=>setForm({...form,treg_mm:v})} type="number" min={5} max={40}/>
       <div className="row-2"><F label={`Regleta Izq PRE`} value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label={`Regleta Dch PRE`} value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
       <div className="row-2"><F label="Regleta Izq POST" value={form.tri_post} onChange={v=>setForm({...form,tri_post:v})} type="number"/><F label="Regleta Dch POST" value={form.trd_post} onChange={v=>setForm({...form,trd_post:v})} type="number"/></div>
       {fl!==null&&<div className="force-loss-badge" style={{color:fl>35?'var(--crit)':fl>25?'var(--bad)':fl>15?'var(--warn)':'var(--good)'}}>Pérdida de fuerza: {fl}%</div>}
       <label className="sync-toggle"><input type="checkbox" checked={!!form.syncTindeq} onChange={e=>setForm({...form,syncTindeq:e.target.checked})}/> Guardar estos valores también en la pestaña Tindeq</label>
-      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button className="block-rm" onClick={()=>rB(bi)}>✕</button>}</div><div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>{AGARRES.map(a=>{const on=(b.agarres||[]).includes(a.id);return(<button key={a.id} type="button" onClick={()=>sB(bi,'agarres',on?(b.agarres||[]).filter(x=>x!==a.id):[...(b.agarres||[]),a.id])} style={{padding:'4px 9px',borderRadius:14,fontSize:11,cursor:'pointer',border:'1px solid '+(on?'var(--brand)':'var(--hair)'),background:on?'var(--brand)':'transparent',color:on?'var(--onChip)':'var(--ink2)'}}>{a.nombre}</button>)})}</div>
-        {b.ejercicios.map((ej,ei)=><div key={ei} className="ej-row"><Combo label="" value={ej} onChange={v=>sE(bi,ei,v)} options={allEx}/>{b.ejercicios.length>1&&<button className="ej-rm" onClick={()=>rE(bi,ei)}>✕</button>}</div>)}
+      {form.bloques.map((b,bi)=><div key={b.id||bi} className="block-section"><div className="block-head"><span className={`block-tag ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo}</span>{form.bloques.length>1&&<button type="button" className="block-rm" aria-label="Quitar este bloque" onClick={()=>rB(bi)}><XIcon size={20} weight="bold"/></button>}</div><div className="chips">{AGARRES.map(a=>{const on=(b.agarres||[]).includes(a.id);return(<button key={a.id} type="button" aria-pressed={on} className={'chip-sel'+(on?' on':'')} onClick={()=>sB(bi,'agarres',on?(b.agarres||[]).filter(x=>x!==a.id):[...(b.agarres||[]),a.id])}>{a.nombre}</button>)})}</div>
+        {b.ejercicios.map((ej,ei)=><div key={ei} className="ej-row"><Combo label="" value={ej} onChange={v=>sE(bi,ei,v)} options={allEx}/>{b.ejercicios.length>1&&<button type="button" className="ej-rm" aria-label="Quitar este ejercicio" onClick={()=>rE(bi,ei)}><XIcon size={18} weight="bold"/></button>}</div>)}
         <button className="ej-add" onClick={()=>aE(bi)}>+ Ejercicio</button>
         <div className="row-3" style={{marginTop:8}}><F label="Series" value={b.series} onChange={v=>sB(bi,'series',v)} type="number" min={1}/><F label="Minutos" value={b.minutos} onChange={v=>sB(bi,'minutos',v)} type="number"/><F label="RPE 1-10" value={b.rpe} onChange={v=>sB(bi,'rpe',v)} type="number" min={1} max={10}/></div>
-        {b.minutos&&b.rpe&&<div style={{fontSize:11,color:'var(--carga)',textAlign:'right',marginTop:2}}>Carga: {Number(b.minutos)*Number(b.rpe)}</div>}
+        {b.minutos&&b.rpe&&<div style={{fontSize:13,color:'var(--carga)',textAlign:'right',marginTop:2}}>Carga: {Number(b.minutos)*Number(b.rpe)}</div>}
       </div>)}
       <div className="add-block-row"><button className="add-block-btn" onClick={()=>aB('General')}>+ General</button><button className="add-block-btn" onClick={()=>aB('Específica')}>+ Específica</button></div>
       <div className="row-2" style={{marginTop:12}}><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
@@ -353,9 +379,9 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
     </Modal>
     <div className="card lc">{sorted.slice(0,40).map((r,i)=>{const bl=gB(r);const hasB=r.bloques&&Array.isArray(r.bloques)&&r.bloques.length>0;
       return(<div key={r.id||i} className="ent-row" onClick={()=>ed(r)}>
-      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.hora&&<span className="lr-d" style={{marginLeft:4}}>{r.hora}</span>}<span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span style={{color:'var(--good)',fontSize:10}}>★</span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span><button type="button" title="Duplicar en la fecha de hoy" onClick={e=>{e.stopPropagation();dup(r)}} style={{marginLeft:6,padding:'2px 7px',borderRadius:6,border:'1px solid var(--hair)',background:'transparent',color:'var(--ink2)',fontSize:12,cursor:'pointer'}}>⧉</button></div></div>
-      {bl.map((b,bi)=><div key={bi} style={{display:'flex',alignItems:'center',gap:6,marginTop:4,fontSize:11,color:'var(--ink2)'}}><span className={`block-tag-sm ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo?.charAt(0)}</span>{b.series&&<span style={{color:'var(--acento)'}}>{b.series}×</span>}<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(b.ejercicios||[]).filter(e=>e).join(' · ')}</span></div>)}
-      <div style={{fontSize:11,marginTop:4}}><span style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>Fatiga {r.fatiga_ini}→{r.fatiga_fin}</span>{r.hr_avg&&<span style={{color:'var(--acento)',marginLeft:8}}>♥{r.hr_avg}/{r.hr_max}</span>}</div>
+      <div className="ent-h"><div><span className="lr-d">{(r.fecha||'').slice(5)}</span>{r.hora&&<span className="lr-d" style={{marginLeft:4}}>{r.hora}</span>}<span className="ent-t">{r.tipo}</span></div><div className="ent-st">{hasB&&<span title="Con detalle por bloques" style={{display:'inline-grid',color:'var(--good)'}}><StarIcon size={14} weight="fill"/></span>}<span className="ent-mn">{r.min_total||'—'}′</span><span className="ent-cg">C:{r.carga_total||'—'}</span><button type="button" className="dup-btn" title="Duplicar en la fecha de hoy" aria-label="Duplicar en la fecha de hoy" onClick={e=>{e.stopPropagation();dup(r)}}><CopyIcon size={20} weight="duotone"/></button></div></div>
+      {bl.map((b,bi)=><div key={bi} style={{display:'flex',alignItems:'center',gap:6,marginTop:6,fontSize:13,color:'var(--ink2)'}}><span className={`block-tag-sm ${b.tipo==='General'?'gen':'esp'}`}>{b.tipo?.charAt(0)}</span>{b.series&&<span style={{color:'var(--acento)'}}>{b.series}×</span>}<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(b.ejercicios||[]).filter(e=>e).join(' · ')}</span></div>)}
+      <div style={{fontSize:13,marginTop:6,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><span style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)',fontWeight:600}}>Fatiga {r.fatiga_ini}→{r.fatiga_fin}</span>{r.hr_avg&&<span style={{color:'var(--ink2)',display:'inline-flex',alignItems:'center',gap:4}}><HeartbeatIcon size={15} weight="duotone" style={{color:'var(--acento)'}}/>{r.hr_avg}/{r.hr_max}</span>}</div>
     </div>)})}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>
   </div>);
@@ -378,13 +404,12 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
       <Combo label="Vía" value={form.via||''} onChange={v=>setForm({...form,via:v})} options={fV}/>
       <F label="Grado" value={form.grau} onChange={v=>setForm({...form,grau:v})} options={GR}/>
       <div className="sh a">Agarres</div>
-      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+      <div className="chips" style={{marginBottom:12}}>
         {AGARRES.map(a=>{const on=(form.agarres||[]).includes(a.id);return(
-          <button key={a.id} type="button" onClick={()=>setForm(f=>({...f,agarres:on?(f.agarres||[]).filter(x=>x!==a.id):[...(f.agarres||[]),a.id]}))}
-            style={{padding:'6px 12px',borderRadius:16,fontSize:13,cursor:'pointer',border:'1px solid '+(on?'var(--brand)':'var(--hair)'),background:on?'var(--brand)':'transparent',color:on?'var(--onChip)':'var(--ink)'}}>{a.nombre}</button>)})}
+          <button key={a.id} type="button" aria-pressed={on} className={'chip-sel'+(on?' on':'')} onClick={()=>setForm(f=>({...f,agarres:on?(f.agarres||[]).filter(x=>x!==a.id):[...(f.agarres||[]),a.id]}))}>{a.nombre}</button>)})}
       </div>
       <div className="sh a">Intentos — RPE</div>
-      {form.intentos_rpe.map((rpe,idx)=><div key={idx} className="rpe-row"><span className="rpe-num">#{idx+1}</span><div className="rpe-dots">{[1,2,3,4,5,6,7,8,9,10].map(v=><button key={v} className={`rpe-dot${rpe===v?' active':''}`} onClick={()=>sR(idx,v)}>{v}</button>)}</div>{form.intentos_rpe.length>1&&<button className="ej-rm" onClick={()=>setForm({...form,intentos_rpe:form.intentos_rpe.filter((_,i)=>i!==idx)})}>✕</button>}</div>)}
+      {form.intentos_rpe.map((rpe,idx)=><div key={idx} className="rpe-row"><span className="rpe-num">#{idx+1}</span><div className="rpe-dots">{[1,2,3,4,5,6,7,8,9,10].map(v=><button key={v} className={`rpe-dot${rpe===v?' active':''}`} onClick={()=>sR(idx,v)}>{v}</button>)}</div>{form.intentos_rpe.length>1&&<button type="button" className="ej-rm" aria-label="Quitar este intento" onClick={()=>setForm({...form,intentos_rpe:form.intentos_rpe.filter((_,i)=>i!==idx)})}><XIcon size={18} weight="bold"/></button>}</div>)}
       <button className="ej-add" onClick={()=>setForm({...form,intentos_rpe:[...form.intentos_rpe,5]})}>+ Intento</button>
       <F label="¿Encadenada?" value={form.encadene} onChange={v=>setForm({...form,encadene:v})} options={['SÍ','NO']}/>
       <div className="row-2"><F label="Fatiga Ini" value={form.fatiga_ini} onChange={v=>setForm({...form,fatiga_ini:v})} type="number" min={0} max={10}/><F label="Fatiga Fin" value={form.fatiga_fin} onChange={v=>setForm({...form,fatiga_fin:v})} type="number" min={0} max={10}/></div>
@@ -394,7 +419,7 @@ function RocP({data,save,sects,vias,lib,saveLib}){const[show,setShow]=useState(f
     </Modal>
     <div className="card lc">{sorted.slice(0,50).map((r,i)=>{const avg=rpeAvg(r.intentos_rpe);const mx=rpeMax(r.intentos_rpe);
       return(<div key={r.id||i} className="list-row" onClick={()=>{const ir=pRpe(r.intentos_rpe);setForm({...r,intentos_rpe:ir.length?ir:[5]});setEid(r.id);setShow(true)}}>
-        <div className="lr-l"><span className={`ed ${enc(r)?'y':'n'}`}>{enc(r)?'✓':'✗'}</span><div><div className="lr-m">{r.via||'—'} <span className="gt">{r.grau}</span></div><div className="lr-s">@ {r.lloc} · {r.intents||pRpe(r.intentos_rpe).length} int.{avg!==null&&<span className="rpe-badge"> ø{avg} ↑{mx}</span>}</div></div></div>
+        <div className="lr-l"><span className={`ed ${enc(r)?'y':'n'}`} role="img" aria-label={enc(r)?'Encadenada':'No encadenada'}>{enc(r)?<CheckIcon size={16} weight="bold"/>:<XIcon size={14} weight="bold"/>}</span><div><div className="lr-m">{r.via||'—'} <span className="gt">{r.grau}</span></div><div className="lr-s">@ {r.lloc} · {r.intents||pRpe(r.intentos_rpe).length} int.{avg!==null&&<span className="rpe-badge"> ø{avg} ↑{mx}</span>}</div></div></div>
         <div className="lr-r"><span className="lr-f" style={{color:(r.fatiga_fin||1)>3?'var(--bad)':'var(--good)'}}>{r.fatiga_ini}→{r.fatiga_fin}</span><span className="lr-d">{(r.fecha||'').slice(5)}</span></div>
       </div>)})}</div>
     <Fab onClick={()=>{setEid(null);setForm(blank);setShow(true)}}/>

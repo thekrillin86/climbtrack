@@ -32,7 +32,7 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
             {[['Sesiones/sem', act.sesionesSemana], ['Descanso', act.pctDescanso + '%'], ['Dedos/sem', act.dedosSemana]].map(([l,v]) => (
               <div key={l} style={{ flex:1, textAlign:'center', padding:'10px 4px', background:'var(--wash)', borderRadius:10 }}>
                 <div style={{ fontSize:22, fontWeight:800, color:C.dedos }}>{v}</div>
-                <div style={{ fontSize:10, color:C.sec, marginTop:2 }}>{l}</div>
+                <div style={{ fontSize:12, color:C.sec, marginTop:2 }}>{l}</div>
               </div>
             ))}
           </div>
@@ -48,7 +48,7 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
 
       <div className="card" style={{ padding:16 }}>
         <div className="sh a" style={{ marginBottom:10 }}>Todos los mesociclos</div>
-        <div style={{ fontSize:10, color:C.ter, display:'flex', marginBottom:6 }}>
+        <div style={{ fontSize:12, color:C.ter, display:'flex', marginBottom:6 }}>
           <span style={{ width:52 }}>ciclo</span>
           <span style={{ width:40, textAlign:'right' }}>dias</span>
           <span style={{ width:52, textAlign:'right' }}>ses/sem</span>
@@ -72,7 +72,7 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
             </div>
           );
         })}
-        <div style={{ fontSize:10, color:C.ter, marginTop:10, lineHeight:1.45 }}>
+        <div style={{ fontSize:12, color:C.ter, marginTop:10, lineHeight:1.45 }}>
           La barra es carga de dedos por semana. El color del descanso: verde 30% o mas,
           ambar 15-29%, rojo por debajo.
         </div>
@@ -84,7 +84,7 @@ export default function CiclosP({ cal = [], ent = [], tests = [] }) {
           {avisos.map((a,i) => (
             <div key={i} style={{ fontSize:12, color:C.med, padding:'3px 0' }}>· {a}</div>
           ))}
-          <div style={{ fontSize:10, color:C.ter, marginTop:8 }}>
+          <div style={{ fontSize:12, color:C.ter, marginTop:8 }}>
             Son dudas del propio analisis, no errores seguros. Si un meso dura mucho o poco,
             o dos se solapan, casi siempre es una etiqueta mal puesta.
           </div>
