@@ -213,7 +213,7 @@ export default function CargaP({ cal = [], ent = [], roca = [], tests = [] }) {
                                 fontSize: 14, color: 'var(--ink)', padding: '6px 0',
                                 borderBottom: '1px solid var(--lineSoft)' }}>
             <span>{k === 'detalle' ? 'Detalle del entrenamiento'
-                 : k === 'actividad+reloj' ? 'Actividad + datos del reloj'
+                 : k === 'actividad+reloj' ? 'Actividad + minutos del reloj'
                  : 'Solo actividad y fatiga'}</span>
             <b className="num">{v} días</b>
           </div>
