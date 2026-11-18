@@ -164,6 +164,23 @@ prueba('9 · nombres del plan que el clasificador no reconoce (para Talaia)', ()
   console.log(`  [9] cuentan como test de dedos (SUSP_TEST): ${comoTest.length ? comoTest.join(' · ') : 'ninguno'}`);
 });
 
+/* 10 es asíncrona: va aparte del andamiaje síncrono de arriba. */
+{
+  const nombre = '10 · tres lecturas de la nube a la vez no se pisan (la carrera del 18-11)';
+  try {
+    // Al abrir la app piden Firebase a la vez la nube, la bandeja y el plan.
+    // Antes, el segundo y el tercero fallaban («initializeFirestore() has
+    // already been called with different options») y el plan decía «Todavía
+    // no hay plan». Inicializar no conecta: la prueba no necesita red.
+    const { _cargarParaPruebas } = await import('./nube.js');
+    const r = await Promise.allSettled([_cargarParaPruebas(), _cargarParaPruebas(), _cargarParaPruebas()]);
+    const malas = r.filter(x => x.status !== 'fulfilled').map(x => String(x.reason?.message || x.reason));
+    assert.equal(malas.length, 0, `de tres cargas a la vez fallan ${malas.length}: ${malas[0] || ''}`);
+    assert.ok(r[0].value === r[1].value && r[1].value === r[2].value, 'las tres tienen que recibir el mismo Firebase');
+    resultados.push({ nombre, ok: true });
+  } catch (e) { resultados.push({ nombre, ok: false, msg: e.message }); }
+}
+
 /* ------------------------------------------------------------------ */
 const fallos = resultados.filter(r => !r.ok);
 console.log('\nClimbTrack · comprobaciones del plan y del modo de los tests\n');

@@ -93,15 +93,15 @@ export default function App(){
   /* Plan de la semana de Talaia (plan.js). Se enseña la copia guardada en este
      navegador al momento y se pide a la nube al abrir y al volver a la app,
      como la bandeja. La app solo lo lee. */
-  const[planDoc,setPlanDoc]=useState(()=>planGuardado());
+  const[planDoc,setPlanDoc]=useState(()=>planGuardado());const[planEstado,setPlanEstado]=useState(null);
   useEffect(()=>{if(!init)return;let vivo=true;
-    const cargarP=()=>leerPlan().then(p=>{if(vivo&&p&&p.texto){setPlanDoc(p);guardarPlan(p)}});
+    const cargarP=()=>leerPlan().then(p=>{if(!vivo)return;setPlanEstado(p);if(p&&p.texto){setPlanDoc(p);guardarPlan(p)}});
     cargarP();const vis=()=>{if(document.visibilityState==='visible')cargarP()};
     document.addEventListener('visibilitychange',vis);
     return()=>{vivo=false;document.removeEventListener('visibilitychange',vis)}},[init]);
   // Al entrar en la pestaña Plan se vuelve a pedir: si al abrir la app aún no
   // había sesión en la Nube, aquí ya la hay.
-  useEffect(()=>{if(!init||page!=='plan')return;let vivo=true;leerPlan().then(p=>{if(vivo&&p&&p.texto){setPlanDoc(p);guardarPlan(p)}});return()=>{vivo=false}},[init,page]);
+  useEffect(()=>{if(!init||page!=='plan')return;let vivo=true;leerPlan().then(p=>{if(!vivo)return;setPlanEstado(p);if(p&&p.texto){setPlanDoc(p);guardarPlan(p)}});return()=>{vivo=false}},[init,page]);
   // «Hecho» del Plan: el formulario de Entreno de siempre, ya rellenado. No guarda nada.
   const[prefill,setPrefill]=useState(null);
   const hecho=useCallback(f=>{setPrefill(f);setPage('ent');setMenuOpen(false)},[]);
@@ -184,7 +184,7 @@ export default function App(){
     <main className="content">
       {page==='dash'&&<DashP cal={cal} ent={ent} t25={t25} treg={treg} tests={tests}/>}
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}
-      {page==='plan'&&<PlanP doc={planDoc} ent={ent} cal={cal} t25={t25} treg={treg} onHecho={hecho}/>}
+      {page==='plan'&&<PlanP doc={planDoc} estado={planEstado} ent={ent} cal={cal} t25={t25} treg={treg} onHecho={hecho}/>}
       {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises} t25={t25} st25={d=>s('ct5_t25',d,setT25)} treg={treg} streg={d=>s('ct5_treg',d,setTreg)} prefill={prefill} onPrefill={()=>setPrefill(null)}/>}
       {page==='roca'&&<RocP data={roca} save={d=>s('ct5_roca',d,setRoca)} sects={sects} vias={vias} lib={lib} saveLib={d=>s('ct5_lib',d,setLib)}/>}
       {page==='lib'&&<LibP data={lib} save={d=>s('ct5_lib',d,setLib)} sects={sects}/>}

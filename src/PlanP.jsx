@@ -95,7 +95,16 @@ function BotonHecho({ dia, plan, ent, cal, onHecho }) {
   );
 }
 
-export default function PlanP({ doc, ent = [], cal = [], t25 = [], treg = [], onHecho }) {
+/** Por qué no hay plan, dicho en pantalla (lo que ha devuelto leerPlan). */
+function motivo(estado) {
+  if (!estado) return 'Buscando el plan en la nube…';
+  if (estado.estado === 'sin-sesion') return 'No hay sesión abierta en la pestaña Nube, y el plan llega a través de ella. Entra allí con tu cuenta y vuelve aquí.';
+  if (estado.estado === 'sin-plan') return `En la nube no hay plan para tu usuario (${estado.uid}). Lo sube el puente de Talaia cada hora desde tu Drive.`;
+  if (estado.estado === 'error') return `No se ha podido leer el plan de la nube: ${estado.mensaje}`;
+  return '';
+}
+
+export default function PlanP({ doc, estado, ent = [], cal = [], t25 = [], treg = [], onHecho }) {
   const hoy = td();
   const { plan, error } = useMemo(() => (doc ? leerPlanTexto(doc.texto) : {}), [doc]);
   const [abierto, setAbierto] = useState(null);
@@ -110,6 +119,7 @@ export default function PlanP({ doc, ent = [], cal = [], t25 = [], treg = [], on
               : <>Talaia deja el plan cada domingo en tu Drive y el puente lo sube a la nube cada hora.
                   Aparece aquí cuando la app tiene abierta la sesión de la pestaña Nube.</>}
           </p>
+          {!error && <p className="note" style={{ marginTop: 8 }}><b>Ahora mismo:</b> {motivo(estado)}</p>}
         </Tarjeta>
       </div>
     );
