@@ -499,6 +499,29 @@ export async function leerBandeja() {
   }
 }
 
+/**
+ * El plan de la semana que deja el puente de Talaia en usuarios/{uid}/plan/actual
+ * ({ json, semana, origen, ts }). La app SOLO lo lee, como la bandeja: aquí no
+ * hay ninguna escritura. Devuelve null si no hay sesión, no hay plan o no hay
+ * red; entonces la pantalla sigue con la copia que guardó la última vez.
+ */
+export async function leerPlan() {
+  try {
+    const { auth, db, fs } = await cargar();
+    if (auth.authStateReady) await auth.authStateReady();
+    const u = auth.currentUser;
+    if (!u) return null;
+    const snap = await fs.getDoc(fs.doc(db, 'usuarios', u.uid, 'plan', 'actual'));
+    if (!snap.exists()) return null;
+    const x = snap.data() || {};
+    const ts = x.ts && typeof x.ts.toDate === 'function' ? x.ts.toDate().toISOString() : String(x.ts || '');
+    return { texto: String(x.json || ''), semana: String(x.semana || ''), origen: String(x.origen || ''), ts };
+  } catch (e) {
+    console.warn('[plan]', e);
+    return null;
+  }
+}
+
 export async function quitarDeBandeja(id) {
   const { auth, db, fs } = await cargar();
   if (auth.authStateReady) await auth.authStateReady();

@@ -1,0 +1,281 @@
+{
+ "id": "2026-11-23",
+ "titulo": "Semana del 23 al 29-11",
+ "fase": "Vacaciones · tests",
+ "nota": "Todo el Tindeq tirando hacia arriba. Kilos = % de tu test de cada mano, hecho igual.",
+ "tests": {
+  "fecha": null,
+  "t15i": null,
+  "t15d": null,
+  "t25i": null,
+  "t25d": null,
+  "dom3": null
+ },
+ "dias": [
+  {
+   "dia": "Lunes 23",
+   "fecha": "2026-11-23",
+   "descanso": true,
+   "nota": "Descanso. Si el domingo saliste a roca, mejor no hacer nada."
+  },
+  {
+   "dia": "Martes 24",
+   "fecha": "2026-11-24",
+   "hora": "17:15",
+   "ses": "Tests",
+   "tipoCT": "Suspensions/Dominades",
+   "bloques": [
+    {
+     "t": "Activación · 10'",
+     "tipoCT": "General",
+     "minutos": 10,
+     "items": [
+      [
+       "Rotación externa con goma",
+       "12+12",
+       "Gomas calentamiento hombro"
+      ],
+      [
+       "Flexiones escapulares",
+       "× 10",
+       "Movilidad activación"
+      ],
+      [
+       "Suspensiones suaves 25 mm, Tindeq",
+       "2 × 10\""
+      ],
+      [
+       "Dominadas sin lastre",
+       "2 × 3"
+      ]
+     ],
+     "series": 1
+    },
+    {
+     "t": "Dominada lastrada · 3 repeticiones",
+     "tipoCT": "Específica",
+     "minutos": 15,
+     "items": [
+      [
+       "Sube el lastre hasta el máximo con 3 limpias",
+       "3-4 intentos",
+       "Dominadas lastradas test 3 repeticiones"
+      ],
+      [
+       "Descanso entre intentos",
+       "3'"
+      ]
+     ],
+     "series": 4
+    },
+    {
+     "t": "Fuerza crítica · Tindeq 25 mm, tirando hacia arriba",
+     "tipoCT": "Específica",
+     "minutos": 20,
+     "items": [
+      [
+       "24 × (7\" al máximo / 3\"), mano izquierda",
+       "4'",
+       "Susp. 25mm fuerza critica test"
+      ],
+      [
+       "Descanso",
+       "10'"
+      ],
+      [
+       "Lo mismo con la derecha",
+       "4'"
+      ],
+      [
+       "Si la app tiene el test de fuerza crítica, úsalo. Guarda las dos series: los números los saco yo",
+       ""
+      ]
+     ],
+     "series": 2
+    }
+   ]
+  },
+  {
+   "dia": "Miércoles 25",
+   "fecha": "2026-11-25",
+   "descanso": true,
+   "nota": "Correr a las 19:00 si te apetece, tranquilo. No cuenta como sesión."
+  },
+  {
+   "dia": "Jueves 26",
+   "fecha": "2026-11-26",
+   "hora": "8:00-9:15",
+   "ses": "A · Fuerza en casa",
+   "tipoCT": "Suspensions/Dominades",
+   "bloques": [
+    {
+     "t": "Activación · 8'",
+     "tipoCT": "General",
+     "minutos": 8,
+     "items": [
+      [
+       "Rotación externa con goma",
+       "12+12",
+       "Gomas calentamiento hombro"
+      ],
+      [
+       "Flexiones escapulares",
+       "× 10",
+       "Movilidad activación"
+      ],
+      [
+       "Suspensiones suaves 25 mm",
+       "2 × 10\""
+      ]
+     ],
+     "series": 1
+    },
+    {
+     "t": "Dedos · 15 mm 85 %, 10\", alternando manos, 3' por mano",
+     "tipoCT": "Específica",
+     "minutos": 12,
+     "items": [
+      [
+       "Semiarqueo 15 mm",
+       {
+        "pct": 85,
+        "mm": 15
+       },
+       "Susp. 15mm 85% semiarqueo"
+      ],
+      [
+       "En los descansos: dominada lastrada, RIR 2",
+       "× 3",
+       "Dominadas lastradas"
+      ]
+     ],
+     "series": 3
+    },
+    {
+     "t": "Gimnasio · 3 rondas, 1'30\"",
+     "tipoCT": "General",
+     "minutos": 18,
+     "items": [
+      [
+       "Press banca, RIR 3",
+       "× 5",
+       "Press banca"
+      ],
+      [
+       "Peso muerto a una pierna, RIR 3",
+       "× 6+6",
+       "Peso muerto 1 pierna"
+      ],
+      [
+       "Remo en TRX",
+       "× 10",
+       "Remo TRX"
+      ]
+     ],
+     "series": 3
+    },
+    {
+     "t": "Escápulas y core · 2 rondas",
+     "tipoCT": "General",
+     "minutos": 10,
+     "items": [
+      [
+       "Face pull con goma",
+       "× 12",
+       "Face pull"
+      ],
+      [
+       "Flexión con empuje final",
+       "× 10",
+       "Flexiones empuje escapular"
+      ],
+      [
+       "«T» y «W» en TRX",
+       "× 8+8",
+       "Y en TRX"
+      ],
+      [
+       "Press Pallof, 3\" quieto",
+       "5+5",
+       "Pallof con goma"
+      ]
+     ],
+     "series": 2
+    }
+   ]
+  },
+  {
+   "dia": "Viernes 27",
+   "fecha": "2026-11-27",
+   "descanso": true,
+   "nota": "Descanso."
+  },
+  {
+   "dia": "Sábado 28",
+   "fecha": "2026-11-28",
+   "hora": "18:15",
+   "ses": "B2 · Kilter en casa",
+   "tipoCT": "Rocòdrom",
+   "bloques": [
+    {
+     "t": "Calentar · 15'",
+     "tipoCT": "General",
+     "minutos": 15,
+     "items": [
+      [
+       "Kilter a ángulo bajo, bloques muy fáciles",
+       "15'",
+       "Bloques Kilter calentar"
+      ]
+     ],
+     "series": 1
+    },
+    {
+     "t": "Repeticiones de bloque · 3' entre series",
+     "tipoCT": "Específica",
+     "minutos": 30,
+     "items": [
+      [
+       "Mismo bloque de 8-10 movimientos, 2-3 grados por debajo de tu máximo",
+       "4-6 repes",
+       "Bloques Kilter repeticiones"
+      ],
+      [
+       "Más de 6: bloque fácil. Menos de 4: duro",
+       ""
+      ],
+      [
+       "Ángulo moderado",
+       ""
+      ]
+     ],
+     "series": 4
+    },
+    {
+     "t": "Escápulas · 1 ronda",
+     "tipoCT": "General",
+     "minutos": 5,
+     "items": [
+      [
+       "Face pull con goma",
+       "× 12",
+       "Face pull"
+      ],
+      [
+       "«T» y «W» en TRX",
+       "× 8+8",
+       "Y en TRX"
+      ]
+     ],
+     "series": 1
+    }
+   ]
+  },
+  {
+   "dia": "Domingo 29",
+   "fecha": "2026-11-29",
+   "descanso": true,
+   "nota": "C · libre: roca, roco o Kilter si te apetece. Si no, descanso."
+  }
+ ]
+}

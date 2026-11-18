@@ -14,6 +14,7 @@
  *    carga totales.
  */
 import { ACTS } from './lib.js';
+import { MODOS, nombreModo } from './tindeq.js';
 
 export const ETIQUETAS = {
   ct5_cal: 'Rutina diaria', ct5_ent: 'Entrenamiento', ct5_roca: 'Salida a roca', ct5_lib: 'Libreta',
@@ -34,6 +35,10 @@ export function validarPropuesta(p) {
     if (!x || typeof x !== 'object' || Array.isArray(x)) return `Registro ${n}: viene vacío.`;
     if (x.fecha !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(x.fecha))) return `Registro ${n}: fecha no válida.`;
     if (r.clave === 'ct5_cal' && !ACTS.includes(x.activitat)) return `Registro ${n}: actividad «${x.activitat || ''}» no existe en Rutina diaria.`;
+    // El modo del Tindeq es opcional, pero si viene tiene que ser uno de los tres:
+    // uno mal escrito abriría una serie nueva que no se compara con nada.
+    if ((r.clave === 'ct5_t25' || r.clave === 'ct5_treg') && x.modo !== undefined && x.modo !== '' && !MODOS.some(m => m.id === x.modo))
+      return `Registro ${n}: modo del test «${x.modo}» no válido (colgado, arriba o abajo).`;
     if (r.clave === 'ct5_ent') {
       if (!TIPOS_ENT.includes(x.tipo)) return `Registro ${n}: tipo de entrenamiento «${x.tipo || ''}» no válido.`;
       if (!Array.isArray(x.bloques) || !x.bloques.length) return `Registro ${n}: el entrenamiento no trae bloques.`;
@@ -82,6 +87,7 @@ export function describir(r) {
     if (x.fatiga_fin !== undefined && x.fatiga_fin !== '') partes.push(`fatiga fin ${x.fatiga_fin}`);
   }
   if (r.clave === 'ct5_roca') partes.push(x.lloc, x.via);
+  if (r.clave === 'ct5_t25' || r.clave === 'ct5_treg') partes.push(x.mm ? `${x.mm} mm` : '', x.esq || x.dre ? `izq ${x.esq ?? '—'} N · dch ${x.dre ?? '—'} N` : '', x.modo ? nombreModo(x.modo).toLowerCase() : '', x.momento || '');
   if (x.obs) partes.push(`obs: ${x.obs}`);
   return partes.filter(v => v !== undefined && v !== null && v !== '').join(' · ');
 }

@@ -56,11 +56,11 @@ button{touch-action:manipulation}
 .bandeja-aviso svg{color:var(--brandInk);flex:none}
 
 /* ---------- barra inferior ---------- */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:50;display:grid;grid-template-columns:repeat(5,minmax(0,112px));justify-content:center;
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:50;display:grid;grid-template-columns:repeat(6,minmax(0,96px));justify-content:center;
   background:color-mix(in srgb,var(--bgElev) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);
   padding:6px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
 .nav-tab{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--ink2);padding:4px 0;min-height:56px;cursor:pointer}
-.nav-icon{width:60px;height:32px;border-radius:999px;display:grid;place-items:center;transition:background-color .25s var(--ease),color .25s var(--ease)}
+.nav-icon{width:100%;max-width:60px;height:32px;border-radius:999px;display:grid;place-items:center;transition:background-color .25s var(--ease),color .25s var(--ease)}
 .nav-label{font-size:12px;font-weight:600;letter-spacing:.2px}
 .nav-tab.active{color:var(--ink)}
 .nav-tab.active .nav-icon{background:color-mix(in srgb,var(--brand) 22%,var(--bgElev));color:var(--brandInk)}
@@ -313,6 +313,36 @@ select.f-input{background-image:${FLECHA};background-repeat:no-repeat;background
 .rk-track{grid-column:2/4;height:10px;background:var(--track);border-radius:4px;overflow:hidden}
 .rk-row.sin-ic .rk-track{grid-column:1/3}
 .rk-fill{display:block;height:100%;width:var(--v);background:var(--c);border-radius:0 4px 4px 0;transform-origin:left center}
+
+/* ---------- plan de la semana ---------- */
+.pl-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pl-blq{border-top:1px solid var(--line);padding:12px 0 4px}
+.pl-blq:first-of-type{border-top:0;padding-top:2px}
+.pl-bh{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;column-gap:8px;margin-bottom:8px}
+.pl-bh b{font-size:15px;font-weight:700}
+.pl-bh small{font-size:13px;color:var(--ink2);white-space:nowrap;padding-top:1px}
+.pl-items{list-style:none;display:flex;flex-direction:column;gap:8px;padding-left:28px}
+.pl-item{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;font-size:15px}
+.pl-txt{flex:1 1 60%;min-width:0;overflow-wrap:anywhere}
+.pl-dosis{font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.pl-kg{flex:1 1 100%;display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.pl-manos{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pl-pct{font-size:13px;color:var(--ink2);font-weight:600;margin-right:2px}
+.pl-mano{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--track);font-size:14px}
+.pl-mano b{font-family:var(--f-display);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.pl-fuente{font-size:12px;color:var(--ink2);line-height:1.45}
+.pl-sem{list-style:none;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
+.pl-dia{width:100%;display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr) 22px 18px;align-items:center;gap:10px;min-height:52px;padding:8px 6px;border:0;border-radius:12px;background:none;color:var(--ink);text-align:left;cursor:pointer}
+.pl-dia:active{background:var(--wash2)}
+.pl-dia.hoy{background:color-mix(in srgb,var(--brand) 10%,var(--card))}
+.pl-dia[aria-expanded="true"] .caret{transform:rotate(180deg)}
+.pl-dn{display:flex;flex-direction:column;line-height:1.15}
+.pl-dn b{font-size:15px;font-weight:700}
+.pl-dn em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--brandInk)}
+.pl-ds{font-size:14px;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.pl-ds small{color:var(--ink2);font-size:13px}
+.pl-hueco{width:18px;height:18px;border-radius:50%;border:2px solid var(--lineStrong);justify-self:center}
+.pl-det{padding:4px 6px 14px}
 
 /* ---------- panel de hoy ---------- */
 .verdict{--c:var(--warnMark);background:color-mix(in srgb,var(--c) 17%,var(--card));overflow:hidden;display:flex;flex-direction:column;gap:10px}

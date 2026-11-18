@@ -61,6 +61,10 @@ Colecciones que migran:
 No son colecciones y no van en `CLAVES`: `ct5_init`, `ct5_lastBackup`,
 `ct5_schemaVersion`, `ct5_migrationLog`, `ct5_preMigrationBackup`.
 
+Fuera de IndexedDB, en `localStorage` y sin prefijo `ct5_` porque **no son
+datos suyos**: `climbtrack-tema` (claro u oscuro) y `climbtrack-plan` (copia
+del plan de Talaia para verlo sin red, ver §14). Ninguna viaja a la nube.
+
 ---
 
 ## 3. Migraciones
@@ -263,6 +267,16 @@ Medido sobre su histórico al decidirlo: cambian 31 días, sobre todo 11 de
 cardio y 9 de roca de abril y mayo. El puente de (d) no se mueve: solo 3 de los
 47 días con los dos cálculos llevan kcal. Lo sujeta la comprobación 11.
 
+Aplicado el 18-11-2026 (el parche era del 09-10 y entró tal cual, con la
+autoría de Talaia). Vuelto a medir ese día sobre su copia de datos: cambian
+31 días (11 cardio, 9 roca, 5 rocódromo, 5 suspensiones, 1 gimnasio) y el
+puente no se mueve con el parche (58 días con los dos cálculos, 4 con kcal).
+**Ojo, aparte del parche:** con el histórico de noviembre la mediana
+detalle/actividad sale ×1,22 · ×1,99 · ×1,79 (dedos, cuerpo, sistémico),
+frente a los ×1,33 · ×2,09 · ×2,19 de `PARAMS`. No se ha tocado: volver a
+calibrar (d) es decisión de Juan y hay que medirlo con calma (el cálculo de
+ese día no suma varias sesiones de la misma fecha).
+
 ---
 
 ## 5. Taxonomía de agarres — es la de Juan, son ocho
@@ -349,6 +363,10 @@ src/
   CargaP.jsx     pestaña Carga
   CiclosP.jsx    pestaña Ciclos
   NubeP.jsx      pestaña Nube
+  PlanP.jsx      pestaña Plan (§14)
+  plan.js        el plan de Talaia: leerlo, kilos por mano, «Hecho»
+  tindeq.js      modo de los tests y compararTest (antes en DashP.jsx)
+  plan.ejemplo.json  plan real del 23-11 sin notas personales (pruebas)
 ```
 
 - Stack: React 18 + Vite 5 + `vite-plugin-pwa` + recharts + `motion`
@@ -357,7 +375,7 @@ src/
 - Rama: **`master`** (no `main`).
 - Despliegue: **Netlify**, automático al hacer push a `master`.
   No hay que hacer nada más: `git push` y en un par de minutos está online.
-- Tests: `npm test` (`src/carga.test.mjs`). Antes de cada commit,
+- Tests: `npm test` (`src/carga.test.mjs` y `src/plan.test.mjs`). Antes de cada commit,
   `npm run build` y `npm test` en verde. Si añades lógica no trivial, añade
   su prueba.
 - Juan no quiere servidores de desarrollo ni previews que se queden
@@ -395,7 +413,16 @@ src/
       récords personales, rachas, la curva del test anterior junto a la
       última. Se proponen aparte, no se meten sin preguntar.
 
+- [ ] Talaia: «Pallof con goma» no clasifica, y «Dominadas lastradas test 3
+      repeticiones» entra como test de dedos (SUSP_TEST) por la palabra
+      «test ». Lo arregla ella cambiando el nombre en el plan; el catálogo no
+      se toca sin hablarlo con Juan.
+- [ ] Volver a medir el puente (d) con el histórico de noviembre (§4 f).
+
 ### Hecho (para que no se vuelva a proponer)
+
+- [x] **Pestaña Plan, modo de los tests y parche del sistémico**
+      (18-11-2026, un solo despliegue). Ver §14 y §4 (f).
 
 - [x] **Rediseño visual** (09-11-2026): tema claro y oscuro, letra local,
       iconos Phosphor, gráficas nuevas en Panel, Carga, Tests, Tindeq, Peso y
@@ -510,9 +537,56 @@ Solo aspecto. Si algo de aquí choca con §4 o §6, mandan §4 y §6.
   Firestore que solo dejan leer y escribir `usuarios/{uid}/**` a ese mismo
   `uid` (Juan las revisó el 09-11-2026 y están así), y el registro de cuentas
   nuevas está desactivado en Authentication (también desde el 09-11-2026).
-  Restringir la clave al dominio de la app (Google Cloud)
-  también se suele recomendar, pero **antes hay que mirar si el Apps Script
-  de Talaia usa esa misma clave**: una restricción por dominio le cortaría el
-  paso y la bandeja dejaría de llegar.
+  Restringir la clave al dominio de la app (Google Cloud) también se suele
+  recomendar. El Apps Script del puente (versión 2, 18-11-2026) **no usa esa
+  clave**: entra en Firestore con el permiso de Google de Juan
+  (`ScriptApp.getOAuthToken`), así que la restricción no le afectaría.
 - En `src` no hay `dangerouslySetInnerHTML`, `innerHTML` ni `eval`. Lo que
   llega de la bandeja de Talaia se pinta como texto. Mantenlo así.
+
+---
+
+## 14. Plan de Talaia y modo de los tests (18-11-2026)
+
+Desde el 18-11-2026 Talaia (Claude, en Cowork) es su entrenadora.
+
+**De dónde sale el plan.** Cada domingo deja `talaia-plan.json` en la
+carpeta de Drive «Talaia · ClimbTrack». El Apps Script del puente lo copia
+cada hora a `usuarios/{uid}/plan/actual` (`{ json, semana, origen, ts }`).
+La app **solo lo lee** (`leerPlan()` en `nube.js`), al abrir y al volver a
+la app, como la bandeja, y guarda una copia en `localStorage`
+(`climbtrack-plan`) para verlo sin red. Las reglas de Firestore ya lo cubren
+(`usuarios/{uid}/{document=**}`); no hay `firestore.rules` en el repo.
+
+**Qué enseña.** Hoy arriba, la semana entera debajo con lo apuntado marcado
+(un `ct5_ent` o `ct5_cal` de esa fecha). Sin predicciones ni puntuaciones:
+solo lo planificado y lo hecho.
+
+**Kilos por mano** donde la dosis es `{pct, mm}`: % × su último test
+**tirando hacia arriba** de esa mano y esos mm (los «post» no cuentan),
+redondeado a 0,5 kg. Cada mano con su test, nunca un total repartido: la
+derecha trabaja con tres dedos. Los tests de la app mandan; los del plan
+(`tests.t15i`…, en kilos) son solo respaldo. Si no hay ninguno: «falta el
+test tirando hacia arriba a N mm». La pantalla dice de dónde sale cada número.
+
+**Los tests del Tindeq se guardan en NEWTONS**, como todo el histórico
+(decisión de Juan del 18-11-2026). Para el Plan se pasan a kilos con
+`kgDeN` (÷ 9,80665).
+
+**«Hecho» solo rellena.** Abre el formulario de Entreno de siempre con fecha,
+hora de inicio, tipo, macro y meso del último registro **suyo** (sin
+`origen`), un bloque por bloque del plan con sus nombres de ClimbTrack,
+series y minutos. RPE y fatiga final vacíos; fatiga inicial 1. Guarda él con
+Registrar, por el mismo `save`, y el registro lleva `origen: 'plan:<id>'`.
+
+**Modo de los tests** (`tindeq.js`). Campo opcional `modo` en `ct5_treg` y
+`ct5_t25`: `colgado` | `arriba` | `abajo`. El histórico se queda **sin
+modo**: no se migra ni se adivina, y forma su propia serie, «sin indicar».
+Los formularios de test (Tindeq y Entreno) traen «tirando hacia arriba» por
+defecto. `compararTest` y la pestaña Tindeq solo comparan tests del mismo
+modo (y de la misma regleta). La bandeja rechaza un modo que no sea uno de
+los tres.
+
+**Nombres del plan.** `plan.test.mjs` (prueba 9) lista los nombres que el
+clasificador no reconoce: se los cambia Talaia en el plan, no se fuerza el
+catálogo.

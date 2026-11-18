@@ -22,6 +22,7 @@ import {
 import { seriesCarga, fatigaAcumulada, perfilEnFecha, PARAMS } from './carga.js';
 import { td } from './lib.js';
 import { ConTabla, Tabla, Tarjeta, DIAS, aT } from './graficas.jsx';
+import { compararTest, nombreModo } from './tindeq.js';
 
 /* Aspecto (noviembre 2026): el radar pasa a cuatro barras que se abren y
    cuentan de dónde sale cada número, el anillo se dibuja en SVG y la ventana
@@ -63,46 +64,8 @@ function frescura(fatiga, ref) {
   return out;
 }
 
-/* --------- test de hoy contra su media, MISMO MONTAJE --------- */
-function compararTest(treg, t25) {
-  // Dos filtros que no estaban:
-  //  - LAS DOS MANOS. `valor` suma esq+dre, así que un registro con una sola
-  //    mano rellena se compara contra medias de dos y sale un −50 % inventado
-  //    que además dispara "Hoy toca descansar".
-  //  - SOLO 'pre'. Un 'post' son los dedos ya fatigados; mezclarlo con los
-  //    'pre' es comparar cosas distintas, igual que mezclar tamaños de regleta.
-  const todos = [...(treg || []), ...(t25 || [])]
-    .filter(r => r.fecha && Number(r.esq) > 0 && Number(r.dre) > 0 && r.momento !== 'post')
-    .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
-  if (!todos.length) return null;
-
-  const ultimo = todos[todos.length - 1];
-  const valor = r => (Number(r.esq) || 0) + (Number(r.dre) || 0);
-  const v = valor(ultimo);
-  // Numérico, no textual: en su histórico conviven "16" y "16.0", que como
-  // texto nunca casan y partirían la serie en dos sin decirlo.
-  const mmNum = Number(ultimo.mm) > 0 ? Number(ultimo.mm) : null;
-  if (mmNum === null) {
-    return { fecha: ultimo.fecha, mm: null, valor: v, n: 0, sinBase: true };
-  }
-
-  // solo tests del MISMO tamaño de regleta y de los 60 días anteriores a él
-  const desde = new Date(ultimo.fecha); desde.setDate(desde.getDate() - 60);
-  const base = todos.filter(r =>
-    Number(r.mm) === mmNum && r !== ultimo && new Date(r.fecha) >= desde
-  );
-
-  const mm = String(mmNum);
-  if (base.length < 3) {
-    return { fecha: ultimo.fecha, mm, valor: v, n: base.length, sinBase: true };
-  }
-  const media = base.reduce((s, r) => s + valor(r), 0) / base.length;
-  return {
-    fecha: ultimo.fecha, mm, valor: v, media: Math.round(media),
-    pct: Math.round(((v - media) / media) * 1000) / 10,
-    n: base.length, sinBase: false,
-  };
-}
+/* compararTest vive en tindeq.js desde el 18-11-2026: compara solo tests del
+   mismo modo y así se puede probar sin React. */
 
 /* --------- ventana tendinosa, ahora sobre el canal de dedos ---------
    Se cuenta en DÍAS ENTEROS, no en horas: `ct5_ent` guarda fecha, no hora,
@@ -266,8 +229,8 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
       txt: `La fatiga general, la que más sube con el cardio y las sesiones largas. Es la que antes se recupera (τ ${PARAMS.tau.sistemico} ${PARAMS.tau.sistemico === 1 ? 'día' : 'días'}).` },
     { k: 'fuerza', nom: 'Fuerza', Icono: GaugeIcon, c: 'var(--fuerza)', v: ejeFuerza, peso: 30,
       txt: conTest
-        ? `Tu último test contra tu media de los 60 días anteriores, en la misma regleta. 50 es justo tu media y cada 1 % arriba o abajo mueve 4 puntos: ${signo(test.pct)} % da ${ejeFuerza}.`
-        : 'Tu último test contra tu media de los 60 días anteriores, en la misma regleta. Ahora mismo no hay ningún test comparable, así que se queda en 50.' },
+        ? `Tu último test contra tu media de los 60 días anteriores, en la misma regleta y del mismo modo. 50 es justo tu media y cada 1 % arriba o abajo mueve 4 puntos: ${signo(test.pct)} % da ${ejeFuerza}.`
+        : 'Tu último test contra tu media de los 60 días anteriores, en la misma regleta y del mismo modo. Ahora mismo no hay ningún test comparable, así que se queda en 50.' },
   ];
   const [abierto, setAbierto] = useState(null);
 
@@ -299,6 +262,9 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
   const fechaHoy = cap(`${DIAS[hoyD.getUTCDay()]} ${hoyD.getUTCDate()} de ${MESES_L[hoyD.getUTCMonth()]}`);
   const pos = conTest ? 50 + Math.max(-10, Math.min(10, test.pct)) * 5 : 50;
   const N = NIVEL[vent.nivel] || NIVEL.green;
+  // El modo del último test, dicho en la frase: «tirando hacia arriba» o, en el
+  // histórico, «sin modo indicado».
+  const modoTxt = test ? (test.modo ? nombreModo(test.modo).toLowerCase() : 'sin modo indicado') : '';
   // El umbral del pie es el SUYO, el de su test en Tests (CLAUDE.md §4b). El de
   // PARAMS es solo el respaldo del estudio, y entonces la pantalla lo dice.
   const perfilHoy = useMemo(() => perfilEnFecha(tests, hoy), [tests, hoy]);
@@ -405,11 +371,11 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
             </div>
           ) : test.sinBase ? (
             <div className="note">
-              {test.fecha.split('-').reverse().join('/')} · {test.mm ? <>regleta {test.mm} mm · </> : null}
+              {test.fecha.split('-').reverse().join('/')} · {test.mm ? <>regleta {test.mm} mm · </> : null}{modoTxt} ·{' '}
               {test.valor} N (suma de las dos manos).<br />
               {test.mm === null
                 ? 'Este test no tiene anotado el tamaño de regleta, así que no hay con qué compararlo.'
-                : `${test.n === 0 ? 'No hay ningún test más' : `Solo hay ${test.n} test${test.n === 1 ? '' : 's'} más`} con esa regleta en los 60 días anteriores. Hacen falta 3 para poder comparar con algo.`}
+                : `${test.n === 0 ? 'No hay ningún test más' : `Solo hay ${test.n} test${test.n === 1 ? '' : 's'} más`} con esa regleta y ese modo en los 60 días anteriores. Hacen falta 3 para poder comparar con algo.`}
             </div>
           ) : (
             <>
@@ -424,7 +390,7 @@ export default function DashP({ cal = [], ent = [], t25 = [], treg = [], tests =
               <div className="note">
                 {test.fecha.split('-').reverse().join('/')} · {test.valor} N contra una media de {test.media} N,
                 sumando las dos manos.<br />
-                Comparado solo con tests <b>pre</b> de <b>regleta {test.mm} mm</b>, {test.n} de los 60 días
+                Comparado solo con tests <b>pre</b> de <b>regleta {test.mm} mm</b> y <b>{modoTxt}</b>, {test.n} de los 60 días
                 anteriores a ese test.
               </div>
             </>

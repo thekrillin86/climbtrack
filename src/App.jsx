@@ -4,11 +4,15 @@ import { DT, xi, td, CL, GO, MS, ACTS, AI, GR, TTS, ld, sv, pRpe, rpeStr, rpeAvg
 import { ejecutarMigraciones } from './migrations.js';
 import { PantallaFallo, confirmarSobrescritura } from './seguridad.jsx';
 import NubeP from './NubeP.jsx';
-import { iniciarNube, leerBandeja, quitarDeBandeja } from './nube.js';
+import { iniciarNube, leerBandeja, quitarDeBandeja, leerPlan } from './nube.js';
 import { validarPropuesta, prepararRegistro, yaAnadida, describir } from './bandeja.js';
 import { AGARRES, sugerirAgarres } from './agarres.js';
 import CargaP from './CargaP.jsx';
 import DashP from './DashP.jsx';
+import PlanP from './PlanP.jsx';
+import { planGuardado, guardarPlan } from './plan.js';
+import { MODOS, MODO_POR_DEFECTO, SIN_MODO, modoDe, nombreModo, cortoModo, porModo } from './tindeq.js';
+import { ClipboardTextIcon } from '@phosphor-icons/react';
 import CiclosP from './CiclosP.jsx';
 import { m, AnimatePresence } from 'motion/react';
 import { HouseIcon, CalendarCheckIcon, BarbellIcon, MountainsIcon, DotsThreeOutlineIcon, BookOpenTextIcon, RulerIcon, ScalesIcon, FlaskIcon, LightningIcon, ArrowsClockwiseIcon, CloudIcon, ChartLineUpIcon, DownloadSimpleIcon, PlusIcon, XIcon, TrashIcon, CopyIcon, WarningIcon, TrayIcon, WatchIcon, MoonStarsIcon, SmileyIcon, CheckIcon, StarIcon, HeartbeatIcon, InfoIcon, FolderOpenIcon, SunIcon, MoonIcon } from '@phosphor-icons/react';
@@ -42,6 +46,9 @@ function Combo({label,value,onChange,options}){
     {open&&list.length>0&&<div className="cb-drop">{list.slice(0,8).map((o,i)=><div key={i} className="cb-item" onMouseDown={()=>{onChange(o);setOpen(false)}}>{o}</div>)}</div>}
   </div>);
 }
+/* Modo del test del Tindeq (tindeq.js). Un test nuevo nace «tirando hacia
+   arriba»; «Sin indicar» es lo que ya estaba guardado sin modo. */
+function SelModo({value,onChange}){return(<div className="f-wrap"><label className="f-label">Modo del test</label><select className="f-input" value={value||''} onChange={e=>onChange(e.target.value)}><option value="">Sin indicar</option>{MODOS.map(m=><option key={m.id} value={m.id}>{m.nombre}</option>)}</select></div>)}
 function F({label,value,onChange,type='text',step,min,max,options}){
   if(options)return(<div className="f-wrap"><label className="f-label">{label}</label><select className="f-input" value={value||''} onChange={e=>onChange(e.target.value)}><option value="">—</option>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
   return(<div className="f-wrap"><label className="f-label">{label}</label><input className="f-input" type={type} value={value??''} step={step} min={min} max={max} onChange={e=>onChange(type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value)}/></div>);
@@ -83,6 +90,18 @@ export default function App(){
   const s=useCallback(async(k,d,fn)=>{fn(d);await sv(k,d)},[]);
   /* Bandeja de Talaia: propuestas que llegan por la nube y que solo entran
      si Juan toca Añadir. Añadir usa el mismo s() que cualquier formulario. */
+  /* Plan de la semana de Talaia (plan.js). Se enseña la copia guardada en este
+     navegador al momento y se pide a la nube al abrir y al volver a la app,
+     como la bandeja. La app solo lo lee. */
+  const[planDoc,setPlanDoc]=useState(()=>planGuardado());
+  useEffect(()=>{if(!init)return;let vivo=true;
+    const cargarP=()=>leerPlan().then(p=>{if(vivo&&p&&p.texto){setPlanDoc(p);guardarPlan(p)}});
+    cargarP();const vis=()=>{if(document.visibilityState==='visible')cargarP()};
+    document.addEventListener('visibilitychange',vis);
+    return()=>{vivo=false;document.removeEventListener('visibilitychange',vis)}},[init]);
+  // «Hecho» del Plan: el formulario de Entreno de siempre, ya rellenado. No guarda nada.
+  const[prefill,setPrefill]=useState(null);
+  const hecho=useCallback(f=>{setPrefill(f);setPage('ent');setMenuOpen(false)},[]);
   const[bandeja,setBandeja]=useState([]);const[verBandeja,setVerBandeja]=useState(false);const[errBandeja,setErrBandeja]=useState('');
   useEffect(()=>{if(!init)return;let vivo=true;
     const cargarB=()=>leerBandeja().then(l=>{if(vivo)setBandeja(l)});
@@ -134,7 +153,7 @@ export default function App(){
     if(window.confirm('¿Se ha descargado el fichero correctamente?\n\nPulsa Aceptar solo si lo ves en Descargas. Si no, Cancelar y el aviso de copia seguirá activo.')){await markBackup();setBkp(await backupStatus())}
   },[cal,ent,roca,lib,t25,treg,dp,tests]);
 
-  const tabs=[{id:'dash',Icono:HouseIcon,label:'Home'},{id:'cal',Icono:CalendarCheckIcon,label:'Rutina'},{id:'ent',Icono:BarbellIcon,label:'Entreno'},{id:'roca',Icono:MountainsIcon,label:'Roca'},{id:'more',Icono:DotsThreeOutlineIcon,label:'Más'}];
+  const tabs=[{id:'dash',Icono:HouseIcon,label:'Home'},{id:'plan',Icono:ClipboardTextIcon,label:'Plan'},{id:'cal',Icono:CalendarCheckIcon,label:'Rutina'},{id:'ent',Icono:BarbellIcon,label:'Entreno'},{id:'roca',Icono:MountainsIcon,label:'Roca'},{id:'more',Icono:DotsThreeOutlineIcon,label:'Más'}];
   const moreP=[{id:'lib',Icono:BookOpenTextIcon,c:'var(--brand)',label:'Libreta'},{id:'tindeq',Icono:RulerIcon,c:'var(--izq)',label:'Tindeq'},{id:'peso',Icono:ScalesIcon,c:'var(--peso)',label:'Peso'},{id:'test',Icono:FlaskIcon,c:'var(--fuerza)',label:'Tests'},{id:'carga',Icono:LightningIcon,c:'var(--dedos)',label:'Carga'},{id:'ciclos',Icono:ArrowsClockwiseIcon,c:'var(--cuerpo)',label:'Ciclos'},{id:'nube',Icono:CloudIcon,c:'var(--info)',label:'Nube'},{id:'stats',Icono:ChartLineUpIcon,c:'var(--sist)',label:'Stats'},{id:'export',Icono:DownloadSimpleIcon,c:'var(--ink2)',label:'Backup'}];
 
   if(loading)return(<div className="app"><div className="loading"><Logo size={56}/><div>ClimbTrack v6</div></div></div>);
@@ -162,7 +181,8 @@ export default function App(){
     <main className="content">
       {page==='dash'&&<DashP cal={cal} ent={ent} t25={t25} treg={treg} tests={tests}/>}
       {page==='cal'&&<CalP data={cal} save={d=>s('ct5_cal',d,setCal)} llocs={llocs}/>}
-      {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises} t25={t25} st25={d=>s('ct5_t25',d,setT25)} treg={treg} streg={d=>s('ct5_treg',d,setTreg)}/>}
+      {page==='plan'&&<PlanP doc={planDoc} ent={ent} cal={cal} t25={t25} treg={treg} onHecho={hecho}/>}
+      {page==='ent'&&<EntP data={ent} save={d=>s('ct5_ent',d,setEnt)} allEx={allExercises} t25={t25} st25={d=>s('ct5_t25',d,setT25)} treg={treg} streg={d=>s('ct5_treg',d,setTreg)} prefill={prefill} onPrefill={()=>setPrefill(null)}/>}
       {page==='roca'&&<RocP data={roca} save={d=>s('ct5_roca',d,setRoca)} sects={sects} vias={vias} lib={lib} saveLib={d=>s('ct5_lib',d,setLib)}/>}
       {page==='lib'&&<LibP data={lib} save={d=>s('ct5_lib',d,setLib)} sects={sects}/>}
       {page==='tindeq'&&<TqP t25={t25} treg={treg} st25={d=>s('ct5_t25',d,setT25)} streg={d=>s('ct5_treg',d,setTreg)}/>}
@@ -316,7 +336,7 @@ function CalP({data,save,llocs}){const[show,setShow]=useState(false);const[eid,s
 }
 
 /* ───────── ENTRENAMIENTOS ───────── */
-function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
+function EntP({data,save,allEx,t25,st25,treg,streg,prefill,onPrefill}){const[show,setShow]=useState(false);const[eid,setEid]=useState(null);
   const lastMm=useMemo(()=>lastEdge(treg),[treg]);
   const TIPOS=['Rocòdrom','Suspensions/Dominades','Gimnàs'];
   const eb=t=>({id:xi(),tipo:t,ejercicios:[''],series:'',minutos:'',rpe:'',agarres:[]});
@@ -324,8 +344,11 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
   // tienen que seguir funcionando igual. Ningún cálculo la usa todavía —
   // primero se guarda, y cuando haya histórico se decide qué hacer con ella.
   // CLAUDE.md §6: la hora se apunta, no se deduce.
-  const blank={fecha:td(),hora:'',macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
+  const blank={fecha:td(),hora:'',macro:'',meso:'',tipo:'',hr_avg:'',hr_max:'',calorias:'',t25i:'',t25d:'',treg_mm:'',tri:'',trd:'',tri_post:'',trd_post:'',tindeq_modo:MODO_POR_DEFECTO,bloques:[eb('General'),eb('Específica')],fatiga_ini:1,fatiga_fin:1,obs:'',syncTindeq:true};
   const[form,setForm]=useState(blank);
+  // «Hecho» en el Plan: se abre este mismo formulario con la sesión planificada
+  // (plan.js → rellenarEntreno). Guarda él con Registrar, como siempre.
+  useEffect(()=>{if(!prefill)return;setForm({...blank,...prefill,bloques:(prefill.bloques||[]).map(b=>({...eb(b.tipo),...b}))});setEid(null);setShow(true);onPrefill&&onPrefill()},[prefill]);
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
   const sB=(i,f,v)=>{const b=[...form.bloques];b[i]={...b[i],[f]:v};setForm({...form,bloques:b})};
   const sE=(bi,ei,v)=>{const b=[...form.bloques];const e=[...b[bi].ejercicios];e[ei]=v;b[bi]={...b[bi],ejercicios:e};setForm({...form,bloques:b})};
@@ -337,10 +360,10 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
   const sub=()=>{let ct=0,mt=0;const bl=form.bloques.map(b=>{const m=Number(b.minutos)||0,r=Number(b.rpe)||0,c=m*r;ct+=c;mt+=m;return{...b,carga:c,ejercicios:b.ejercicios.filter(e=>e.trim())}});const e={...form,bloques:bl,min_total:mt,carga_total:ct,force_loss:fl};if(eid)save(data.map(r=>r.id===eid?{...e,id:eid}:r));else save([...data,{...e,id:xi()}]);
     if(form.syncTindeq){
       // 25mm pre-session → Tindeq 25mm tab
-      if(form.t25i&&form.t25d&&st25&&!t25.some(r=>r.fecha===form.fecha)){st25([...t25,{fecha:form.fecha,mm:25,esq:Number(form.t25i),dre:Number(form.t25d),id:xi(),src:'ent'}])}
+      if(form.t25i&&form.t25d&&st25&&!t25.some(r=>r.fecha===form.fecha)){st25([...t25,{fecha:form.fecha,mm:25,esq:Number(form.t25i),dre:Number(form.t25d),id:xi(),src:'ent',...(modoDe({modo:form.tindeq_modo})?{modo:form.tindeq_modo}:{})}])}
       // Regleta pre-session → Tindeq Regleta tab
       const mmVal=Number(form.treg_mm)||lastMm;
-      if(form.tri&&form.trd&&streg&&!treg.some(r=>r.fecha===form.fecha&&r.momento!=='post')){streg([...treg,{fecha:form.fecha,mm:mmVal,esq:Number(form.tri),dre:Number(form.trd),id:xi(),momento:'pre',src:'ent'}])}
+      if(form.tri&&form.trd&&streg&&!treg.some(r=>r.fecha===form.fecha&&r.momento!=='post')){streg([...treg,{fecha:form.fecha,mm:mmVal,esq:Number(form.tri),dre:Number(form.trd),id:xi(),momento:'pre',src:'ent',...(modoDe({modo:form.tindeq_modo})?{modo:form.tindeq_modo}:{})}])}
     }
     setShow(false);setEid(null);setForm(blank)};
   const gB=r=>{if(r.bloques&&Array.isArray(r.bloques)&&r.bloques.length)return r.bloques;const b=[];if(r.parte_gen)b.push({tipo:'General',ejercicios:(r.parte_gen||'').split(' , '),minutos:r.min_gen,rpe:r.rpe_gen,carga:r.carga_gen});if(r.ej_esp)b.push({tipo:'Específica',ejercicios:(r.ej_esp||'').split(' , '),minutos:r.min_esp,rpe:r.rpe_esp,carga:r.carga_esp});return b};
@@ -365,6 +388,7 @@ function EntP({data,save,allEx,t25,st25,treg,streg}){const[show,setShow]=useStat
       <div className="sh a"><WatchIcon size={18} weight="duotone"/>Suunto</div>
       <div className="row-3"><F label="FC media" value={form.hr_avg} onChange={v=>setForm({...form,hr_avg:v})} type="number"/><F label="FC máx" value={form.hr_max} onChange={v=>setForm({...form,hr_max:v})} type="number"/><F label="Calorías" value={form.calorias} onChange={v=>setForm({...form,calorias:v})} type="number"/></div>
       <div className="sh a"><RulerIcon size={18} weight="duotone"/>Tindeq</div>
+      <SelModo value={form.tindeq_modo} onChange={v=>setForm({...form,tindeq_modo:v})}/>
       <div className="row-2"><F label="25mm Izq" value={form.t25i} onChange={v=>setForm({...form,t25i:v})} type="number"/><F label="25mm Dch" value={form.t25d} onChange={v=>setForm({...form,t25d:v})} type="number"/></div>
       <F label={`Tamaño regleta (mm) — último usado: ${lastMm}`} value={form.treg_mm} onChange={v=>setForm({...form,treg_mm:v})} type="number" min={5} max={40}/>
       <div className="row-2"><F label={`Regleta Izq PRE`} value={form.tri} onChange={v=>setForm({...form,tri:v})} type="number"/><F label={`Regleta Dch PRE`} value={form.trd} onChange={v=>setForm({...form,trd:v})} type="number"/></div>
@@ -459,31 +483,47 @@ function TqP({t25,treg,st25,streg}){
   const lastMm=useMemo(()=>lastEdge(treg),[treg]);
   const sizes=useMemo(()=>edgeSizes(treg),[treg]);
   const raw=tab==='25'?t25:treg;
-  const data=useMemo(()=>tab==='reg'&&fmm?raw.filter(r=>String(r.mm)===String(fmm)):raw,[raw,tab,fmm]);
+  // Modo: colgado, arriba y abajo miden cosas distintas (tindeq.js). Se ve un
+  // modo cada vez; por defecto, el del test más reciente.
+  const[fmodo,setFmodo]=useState(null);
+  const cuentaModo=useMemo(()=>{const c={};raw.forEach(r=>{const m=modoDe(r);c[m]=(c[m]||0)+1});return c},[raw]);
+  const ordenModos=[...MODOS.map(m=>m.id),SIN_MODO].filter(m=>cuentaModo[m]);
+  const modoReciente=useMemo(()=>{const u=[...raw].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];return u?modoDe(u):SIN_MODO},[raw]);
+  const modoVer=fmodo!==null&&cuentaModo[fmodo]?fmodo:modoReciente;
+  const rawModo=useMemo(()=>raw.filter(r=>modoDe(r)===modoVer),[raw,modoVer]);
+  // Regletas que tienen tests en ESTE modo, con su cuenta en este modo.
+  const sizesModo=sizes.filter(mm=>rawModo.some(r=>Number(r.mm)===mm));
+  const fmmVer=fmm&&sizesModo.some(m=>String(m)===String(fmm))?fmm:'';
+  const data=useMemo(()=>tab==='reg'&&fmmVer?rawModo.filter(r=>String(r.mm)===String(fmmVer)):rawModo,[rawModo,tab,fmmVer]);
   const[rango,setRango]=useState('todo');
   const desde=desdeRango(rango,td());
   const enRango=useMemo(()=>data.filter(r=>!desde||(r.fecha||'')>=desde),[data,desde]);
   // Con «Todas» y varios tamaños, una gráfica por regleta: los newtons de
   // regletas distintas no se comparan entre sí.
-  const porRegleta=tab==='reg'&&sizes.length>1&&!fmm;
+  const tamModo=sizesModo;
+  const porRegleta=tab==='reg'&&tamModo.length>1&&!fmmVer;
   const sorted=useMemo(()=>[...data].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')),[data]);
-  const blank=()=>({fecha:td(),mm:tab==='25'?25:(fmm||lastMm),esq:'',dre:'',momento:''});
+  const blank=()=>({fecha:td(),mm:tab==='25'?25:(fmm||lastMm),esq:'',dre:'',momento:'',modo:MODO_POR_DEFECTO});
   const[form,setForm]=useState(blank());
   const open=()=>{setEid(null);setForm(blank());setShow(true)};
-  const edit=r=>{setForm({fecha:r.fecha||td(),mm:r.mm||(tab==='25'?25:lastMm),esq:r.esq??'',dre:r.dre??'',momento:r.momento||''});setEid(r.id);setShow(true)};
+  const edit=r=>{setForm({fecha:r.fecha||td(),mm:r.mm||(tab==='25'?25:lastMm),esq:r.esq??'',dre:r.dre??'',momento:r.momento||'',modo:modoDe(r)});setEid(r.id);setShow(true)};
   const sub=()=>{
     const e={...form,mm:Number(form.mm)||(tab==='25'?25:lastMm),esq:Number(form.esq)||'',dre:Number(form.dre)||''};
-    if(tab==='25'){eid?st25(t25.map(r=>r.id===eid?{...r,...e,id:eid}:r)):st25([...t25,{...e,id:xi()}])}
-    else{eid?streg(treg.map(r=>r.id===eid?{...r,...e,id:eid}:r)):streg([...treg,{...e,id:xi()}])}
+    // «Sin indicar» no se guarda: el registro queda sin campo, como el histórico.
+    const limpio=x=>{const y={...x};if(!modoDe(y))delete y.modo;return y};
+    if(tab==='25'){eid?st25(t25.map(r=>r.id===eid?limpio({...r,...e,id:eid}):r)):st25([...t25,limpio({...e,id:xi()})])}
+    else{eid?streg(treg.map(r=>r.id===eid?limpio({...r,...e,id:eid}):r)):streg([...treg,limpio({...e,id:xi()})])}
     setShow(false);setEid(null)};
   const del=()=>{if(tab==='25')st25(t25.filter(r=>r.id!==eid));else streg(treg.filter(r=>r.id!==eid));setShow(false);setEid(null)};
   return(<div className="page"><h2 className="p-title">Tindeq</h2>
     <div className="tabs"><button className={`tb${tab==='25'?' ac':''}`} onClick={()=>{setTab('25');setFmm('')}}>25mm ({t25.length})</button><button className={`tb${tab==='reg'?' ac':''}`} onClick={()=>setTab('reg')}>Regleta ({treg.length})</button></div>
-    {tab==='reg'&&sizes.length>1&&<div className="pills"><button className={`pill${!fmm?' active':''}`} onClick={()=>setFmm('')}>Todas ({treg.length})</button>{sizes.map(m=><button key={m} className={`pill${String(fmm)===String(m)?' active':''}`} onClick={()=>setFmm(m)}>{m}mm ({treg.filter(r=>Number(r.mm)===m).length})</button>)}</div>}
-    {data.length>2&&<Tarjeta titulo={porRegleta?'Evolución por regleta':`Evolución${tab==='reg'&&fmm?` — ${fmm}mm`:''}`} Icono={RulerIcon} c="var(--izq)" i={0}>
+    {ordenModos.length>1&&<div className="pills" role="group" aria-label="Modo del test">{ordenModos.map(m=><button key={m||'sin'} type="button" className={`pill${modoVer===m?' active':''}`} aria-pressed={modoVer===m} onClick={()=>setFmodo(m)}>{cortoModo(m)} ({cuentaModo[m]})</button>)}</div>}
+    {ordenModos.length>1&&<div className="note" style={{margin:'-6px 2px 12px'}}>{nombreModo(modoVer)}{modoVer?'':': los tests guardados antes de apuntar el modo'}. Solo se comparan tests del mismo modo: colgado, tirando hacia arriba y tirando hacia abajo miden cosas distintas.</div>}
+    {tab==='reg'&&sizesModo.length>1&&<div className="pills"><button className={`pill${!fmmVer?' active':''}`} onClick={()=>setFmm('')}>Todas ({rawModo.length})</button>{sizesModo.map(m=><button key={m} className={`pill${String(fmmVer)===String(m)?' active':''}`} onClick={()=>setFmm(m)}>{m}mm ({rawModo.filter(r=>Number(r.mm)===m).length})</button>)}</div>}
+    {data.length>2&&<Tarjeta titulo={porRegleta?'Evolución por regleta':`Evolución${tab==='reg'&&fmmVer?` — ${fmmVer}mm`:''}`} Icono={RulerIcon} c="var(--izq)" i={0} extra={<span className="chip">{cortoModo(modoVer)}</span>}>
       <Rango valor={rango} onCambio={setRango}/>
       <ConTabla tabla={tablaTindeq(enRango)}>
-        {porRegleta?sizes.map(mm=>{const f=enRango.filter(r=>Number(r.mm)===mm);return(<div key={mm} className="mini">
+        {porRegleta?tamModo.map(mm=>{const f=enRango.filter(r=>Number(r.mm)===mm);return(<div key={mm} className="mini">
             <div className="mini-h">{mm} mm <small>· {f.length} {f.length===1?'test':'tests'}</small></div>
             <GraficaTindeq filas={f} alto={150} etiqueta={`Fuerza en regleta de ${mm} mm`}/>
           </div>)})
@@ -497,6 +537,7 @@ function TqP({t25,treg,st25,streg}){
       <F label="Tamaño regleta (mm)" value={form.mm} onChange={v=>setForm({...form,mm:v})} type="number" min={5} max={40}/>
       <div className="row-2"><F label="Izq (N)" value={form.esq} onChange={v=>setForm({...form,esq:v})} type="number"/><F label="Dch (N)" value={form.dre} onChange={v=>setForm({...form,dre:v})} type="number"/></div>
       <F label="Momento" value={form.momento} onChange={v=>setForm({...form,momento:v})} options={['pre','post']}/>
+      <SelModo value={form.modo} onChange={v=>setForm({...form,modo:v})}/>
       <button className="btn-primary btn-full" onClick={sub}>{eid?'Guardar cambios':'Registrar'}</button>
       {eid&&<DelBtn onDel={del} label="este registro"/>}
     </Modal>
@@ -618,7 +659,10 @@ function StP({cal,ent,roca,lib,dp,t25,treg}){const[tab,setTab]=useState('gen');
     </>}
     {tab==='fza'&&<>
       {t25.length>2&&<Tarjeta titulo="Tindeq 25 mm" Icono={RulerIcon} c="var(--izq)" i={0}>
-        <ConTabla tabla={tablaTindeq(t25)}><GraficaTindeq filas={t25}/></ConTabla>
+        <ConTabla tabla={tablaTindeq(t25)}>{porModo(t25).length>1
+          ?porModo(t25).map(([m,f])=><div key={m||'sin'} className="mini"><div className="mini-h">{nombreModo(m)} <small>· {f.length} {f.length===1?'test':'tests'}</small></div><GraficaTindeq filas={f} alto={150}/></div>)
+          :<GraficaTindeq filas={t25}/>}</ConTabla>
+        {porModo(t25).length>1&&<div className="note" style={{marginTop:6}}>Una gráfica por modo: colgado, tirando hacia arriba y tirando hacia abajo no se comparan entre sí.</div>}
       </Tarjeta>}
       {dp.length>2&&<Tarjeta titulo="Peso" Icono={ScalesIcon} c="var(--peso)" i={1}>
         <ConTabla tabla={<Tabla titulo="Pesos registrados" filas={porFecha(dp)} cols={[{k:'fecha',t:'Fecha',f:v=>fechaLarga(v)},{k:'peso',t:'kg',f:v=>v||'—'},{k:'grasa',t:'% grasa',f:v=>v||'—'}]}/>}>

@@ -18,6 +18,7 @@ import { useReducedMotion } from 'motion/react';
 import { TableIcon, ChartLineIcon } from '@phosphor-icons/react';
 import { usePaleta } from './tema.js';
 import { IconoActividad } from './iconos.jsx';
+import { modoDe, cortoModo } from './tindeq.js';
 
 /* ---------------- fechas ---------------- */
 export const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -271,6 +272,7 @@ export const tablaTindeq = filas => (
            { k: 'fecha', t: 'Fecha', f: v => fechaLarga(v) },
            { k: 'mm', t: 'mm', f: v => v || '—' },
            { k: 'momento', t: 'Momento', f: v => v || '—' },
+           { k: 'modo', t: 'Modo', f: v => cortoModo(modoDe({ modo: v })) },
            { k: 'esq', t: 'Izq (N)', f: v => (Number(v) > 0 ? v : '—') },
            { k: 'dre', t: 'Dch (N)', f: v => (Number(v) > 0 ? v : '—') },
          ]}

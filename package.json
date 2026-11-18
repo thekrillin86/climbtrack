@@ -5,7 +5,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "node src/carga.test.mjs"
+    "test": "node src/carga.test.mjs && node src/plan.test.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "5.3.0",
