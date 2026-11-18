@@ -590,3 +590,14 @@ los tres.
 **Nombres del plan.** `plan.test.mjs` (prueba 9) lista los nombres que el
 clasificador no reconoce: se los cambia Talaia en el plan, no se fuerza el
 catálogo.
+
+**Firebase se carga UNA vez** (`cargar()` en `nube.js`, 18-11-2026). Al abrir la
+app lo piden a la vez la nube, la bandeja y el plan. Antes cada uno lo
+inicializaba por su cuenta: el segundo y el tercero fallaban con
+«initializeFirestore() has already been called with different options» y se
+quedaban sin datos en silencio (el plan decía «Todavía no hay plan»; si perdía
+la nube, no se subía nada hasta entrar en la pestaña Nube). Ahora todos
+esperan a la misma carga, lo sujeta la prueba 10 de `plan.test.mjs`, y la
+pestaña Plan dice el motivo cuando no hay plan (sin sesión, sin documento con
+el uid que ha mirado, o el error). No vuelvas a llamar a `initializeApp` ni a
+`initializeFirestore` fuera de `cargar()`.
