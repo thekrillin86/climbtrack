@@ -99,6 +99,9 @@ export default function App(){
     cargarP();const vis=()=>{if(document.visibilityState==='visible')cargarP()};
     document.addEventListener('visibilitychange',vis);
     return()=>{vivo=false;document.removeEventListener('visibilitychange',vis)}},[init]);
+  // Al entrar en la pestaña Plan se vuelve a pedir: si al abrir la app aún no
+  // había sesión en la Nube, aquí ya la hay.
+  useEffect(()=>{if(!init||page!=='plan')return;let vivo=true;leerPlan().then(p=>{if(vivo&&p&&p.texto){setPlanDoc(p);guardarPlan(p)}});return()=>{vivo=false}},[init,page]);
   // «Hecho» del Plan: el formulario de Entreno de siempre, ya rellenado. No guarda nada.
   const[prefill,setPrefill]=useState(null);
   const hecho=useCallback(f=>{setPrefill(f);setPage('ent');setMenuOpen(false)},[]);

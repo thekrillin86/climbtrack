@@ -42,8 +42,18 @@ const emitir = () => avisar({ ...estado });
 /* ------------------------------------------------------------------
    Carga perezosa del SDK
    ------------------------------------------------------------------ */
+// Una sola carga para todos. Al abrir la app piden Firebase a la vez la nube,
+// la bandeja y el plan: antes cada uno lo inicializaba por su cuenta y el
+// segundo y el tercero fallaban (initializeFirestore() has already been called
+// with different options), y quien perdía la carrera se quedaba sin datos sin
+// decirlo. Comprobado el 18-11-2026 con el SDK real, en Node y en Chrome.
+let cargando = null;
 async function cargar() {
   if (fb) return fb;
+  if (!cargando) cargando = cargarUnaVez().catch(e => { cargando = null; throw e; });
+  return cargando;
+}
+async function cargarUnaVez() {
   const [{ initializeApp }, auth, fs, { firebaseConfig }] = await Promise.all([
     import('firebase/app'),
     import('firebase/auth'),
